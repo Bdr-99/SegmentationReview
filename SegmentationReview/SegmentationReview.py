@@ -9,6 +9,7 @@ from slicer.ScriptedLoadableModule import *
 from slicer.util import VTKObservationMixin
 import ctk
 import qt
+import time
 
 try:
     import pandas as pd
@@ -75,8 +76,10 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         self.directory=None
         self.current_index=0
         self.likert_scores = []
+        self.likert_scores_confidence = []
         self.n_files = 0
         self.current_df = None
+        self.time_start = time.time()
 
     def setup(self):
         """
@@ -124,7 +127,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         self.atlasDirectoryButton.directoryChanged.connect(self.onAtlasDirectoryChanged)
         self.ui.save_and_next.connect('clicked(bool)', self.save_and_next_clicked)
         self.ui.overwrite_mask.connect('clicked(bool)', self.overwrite_mask_clicked)
-        
+
         # add a paint brush from segment editor window
         # Create a new segment editor widget and add it to the NiftyViewerWidget
         self._createSegmentEditorWidget_()
@@ -148,24 +151,30 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         self.segmentEditorWidget.setMRMLScene(slicer.mrmlScene)
         self.segmentEditorWidget.unorderedEffectsVisible = False
         self.segmentEditorWidget.setEffectNameOrder([
-            'Paint', 'Draw', 'Erase',
+            'Paint', 'Draw', 'Erase', 'Threshold',
         ])
         self.layout.addWidget(self.segmentEditorWidget)
     
     def overwrite_mask_clicked(self):
         # overwrite self.segmentEditorWidget.segmentationNode()
-        print("Saved segmentation",self.segmentation_files[self.current_index].split("/")[-1].split(".")[0]+"_upd.nii.gz")
         #segmentation_node = slicer.mrmlScene.GetFirstNodeByClass('vtkMRMLSegmentationNode')
 
         # Get the file path where you want to save the segmentation node
         file_path = self.directory+"/t.seg.nrrd"
         # Save the segmentation node to file as nifti
-        file_path_nifti = self.directory+"/"+self.segmentation_files[self.current_index].split("/")[-1].split(".")[0]+"_upd.nii.gz"
+        i = 1 ## version number seg
+        file_path_nifti = self.directory+"/"+self.segmentation_files[self.current_index].split("/")[-1].split(".nii.gz")[0]+"_v"+str(i)+".nii.gz"
         # Save the segmentation node to file
         slicer.util.saveNode(self.segmentation_node, file_path)
         
         img = sitk.ReadImage(file_path)
+
+        while os.path.exists(file_path_nifti):
+            i += 1
+            file_path_nifti = self.directory+"/"+self.segmentation_files[self.current_index].split("/")[-1].split(".nii.gz")[0]+"_v"+str(i)+".nii.gz"
+        print('Saving segmentation to file: ', file_path_nifti)
         sitk.WriteImage(img, file_path_nifti)
+
     def onAtlasDirectoryChanged(self, directory):
         if self.volume_node:
             slicer.mrmlScene.RemoveNode(self.volume_node)
@@ -173,63 +182,122 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
             slicer.mrmlScene.RemoveNode(self.segmentation_node)
 
         self.directory = directory
-        
-        # load the .cvs file with the old annotations or create a new one
-        if os.path.exists(directory+"/annotations.csv"):
-            self.current_index = pd.read_csv(directory+"/annotations.csv").shape[0]+1
+
+        # Initialize these variables at the beginning
+        self.n_files = 0
+        self.nifti_files = []
+        self.segmentation_files = []
+
+        # load the .csv file with the old annotations or create a new one
+        if os.path.exists(directory + "/annotations.csv"):
+            self.current_df = pd.read_csv(directory + "/annotations.csv")
+            self.current_index = self.current_df.shape[0] + 1
             print("Restored current index: ", self.current_index)
         else:
-            self.current_df = pd.DataFrame(columns=['file', 'annotation'])
+            columns = [
+                'file', 'generic_annotation', 'pleural_effusion',
+                'atelectasis', 'extrathoracic', 'chest_wall_mets', 'comment'
+            ]
+            self.current_df = pd.DataFrame(columns=columns)
             self.current_index = 0
-        
+
         # count the number of files in the directory
         for file in os.listdir(directory):
             if ".nii" in file and "_mask" not in file:
-                self.n_files+=1
-                if os.path.exists(directory+"/"+file.split(".")[0]+"_mask.nii.gz"):
-                    self.nifti_files.append(directory+"/"+file)
-                    self.segmentation_files.append(directory+"/"+file.split(".")[0]+"_mask.nii.gz")
+                self.n_files += 1
+                if os.path.exists(directory + "/" + file.split("_0000.nii.gz")[0] + ".nii.gz"):
+                    self.nifti_files.append(directory + "/" + file)
+                    self.segmentation_files.append(directory + "/" + file.split("_0000.nii.gz")[0] + ".nii.gz")
                 else:
                     print("No mask for file: ", file)
-        self.ui.status_checked.setText("Checked: "+ str(self.current_index) + " / "+str(self.n_files-1))
-         
+
+        self.ui.status_checked.setText("Checked: " + str(self.current_index) + " / " + str(self.n_files - 1))
+
         # load first file with mask
         self.load_nifti_file()
-        
-    def save_and_next_clicked(self):
-        likert_score = 0
-        if self.ui.radioButton_1.isChecked():
-            likert_score=1
-        elif self.ui.radioButton_2.isChecked():
-            likert_score=2
-        elif self.ui.radioButton_3.isChecked():
-            likert_score=3
-        elif self.ui.radioButton_4.isChecked():
-            likert_score=4
-        elif self.ui.radioButton_5.isChecked():
-            likert_score=5
-            
-            
-        self.likert_scores.append([self.current_index, likert_score, self.ui.comment.toPlainText()])
-        # append data frame to CSV file
-        data = {'file': [self.nifti_files[self.current_index].split("/")[-1]], 'annotation': [likert_score],'comment': [self.ui.comment.toPlainText()]}
-        df = pd.DataFrame(data)   
-        df.to_csv(self.directory+"/annotations.csv", mode='a', index=False, header=False)
+        self.time_start = time.time()
 
-        # go to the next file if there is one
-        if self.current_index < self.n_files-1:
+    def save_and_next_clicked(self):
+        # Generic category (assuming it's kept the same for reference)
+        generic_likert_score = self.get_likert_score_from_ui([
+            self.ui.radioButton_1,
+            self.ui.radioButton_2,
+            self.ui.radioButton_3,
+            self.ui.radioButton_4,
+            self.ui.radioButton_5
+        ])
+
+        # Pleural effusion
+        pleural_effusion_score = self.get_likert_score_from_ui([
+            self.ui.radioButton_PleuralEffusion_1,
+            self.ui.radioButton_PleuralEffusion_2,
+            self.ui.radioButton_PleuralEffusion_3,
+            self.ui.radioButton_PleuralEffusion_4,
+            self.ui.radioButton_PleuralEffusion_5
+        ])
+
+        atelectasis_score = self.get_likert_score_from_ui([
+            self.ui.checkBox_Atelectasis_No,
+            self.ui.checkBox_Atelectasis_Yes,
+        ])
+
+        extrathoracic_score = self.get_likert_score_from_ui([
+            self.ui.checkBox_ExtraThoracicMPM_No,
+            # assuming there's a checkBox_ExtraThoracicMPM_Yes
+            self.ui.checkBox_ExtraThoracicMPM_Yes,
+        ])
+
+        chest_wall_mets_score = self.get_likert_score_from_ui([
+            self.ui.radioButton_ChestWallMetastasis_No,
+            self.ui.radioButton_ChestWallMetastasis_DrainSite,
+            self.ui.radioButton_ChestWallMetastasis_Yes,
+        ])
+
+        # Now save them as before, but now with additional columns in your dataframe
+        new_row = {
+            'file': self.nifti_files[self.current_index].split(os.sep)[-1],
+            'time_start': self.time_start,
+            'time_end': time.time(),
+            'time_elapsed': time.time() - self.time_start,
+            'generic_annotation': generic_likert_score,
+            'pleural_effusion': pleural_effusion_score,
+            'atelectasis': atelectasis_score,
+            'extrathoracic': extrathoracic_score,
+            'chest_wall_mets': chest_wall_mets_score,
+            'comment': self.ui.comment.toPlainText()
+        }
+
+        # Ensure self.current_df is a DataFrame
+        if not isinstance(self.current_df, pd.DataFrame):
+            print("Error: self.current_df is not a DataFrame!")
+            return
+
+        new_df = pd.DataFrame([new_row])
+        self.current_df = pd.concat([self.current_df, new_df], ignore_index=True)
+        self.current_df.to_csv(self.directory + "/annotations.csv", mode='a', header=False, index=False)
+        self.overwrite_mask_clicked()
+        if self.current_index < self.n_files - 1:
             self.current_index += 1
             self.load_nifti_file()
-            self.ui.status_checked.setText("Checked: "+ str(self.current_index) + " / "+str(self.n_files-1))
+            self.time_start = time.time()
+            self.ui.status_checked.setText("Checked: " + str(self.current_index) + " / " + str(self.n_files - 1))
+            self.reset_ui_elements()
             self.ui.comment.setPlainText("")
         else:
-            print("All files checked") 
-    
+            print("All files checked")
+
+
+    def get_likert_score_from_ui(self, radio_buttons):
+        for idx, radio_button in enumerate(radio_buttons, 1):
+            if radio_button.isChecked():
+                return idx
+        return 0
+
     def load_nifti_file(self):
-        
+
         # Reset the slice views to clear any remaining segmentations
         slicer.util.resetSliceViews()
-        
+
         # ToDo: add 3d tumor view
         file_path = self.nifti_files[self.current_index]
         if self.volume_node:
@@ -242,11 +310,68 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
 
         segmentation_file_path = self.segmentation_files[self.current_index]
         self.segmentation_node = slicer.util.loadSegmentation(segmentation_file_path)
-        self.segmentation_node.GetDisplayNode().SetColor(self.segmentation_color)
-        self.set_segmentation_and_mask_for_segmentation_editor()        
-        
-        print(file_path,segmentation_file_path)
 
+        # Setting the visualization of the segmentation to outline only
+        segmentationDisplayNode = self.segmentation_node.GetDisplayNode()
+        segmentationDisplayNode.SetVisibility2DFill(False)  # Do not show filled region in 2D
+        segmentationDisplayNode.SetVisibility2DOutline(True)  # Show outline in 2D
+        segmentationDisplayNode.SetColor(self.segmentation_color)
+
+        self.set_segmentation_and_mask_for_segmentation_editor()
+
+        print(file_path, segmentation_file_path)
+
+    def reset_ui_elements(self):
+        # Reset Generic category radio buttons
+        print("Resetting UI elements...")
+        self.ui.radioButton_1.setChecked(False)
+        self.ui.radioButton_1.update()  # explicitly force an update
+        print(f"radioButton_1 state after reset: {self.ui.radioButton_1.isChecked()}")
+        slicer.app.processEvents()  # process any pending UI events
+
+        for radio_button in [
+            self.ui.radioButton_1,
+            self.ui.radioButton_2,
+            self.ui.radioButton_3,
+            self.ui.radioButton_4,
+            self.ui.radioButton_5
+        ]:
+            radio_button.setChecked(False)
+
+        # Reset Pleural effusion radio buttons
+        for radio_button in [
+            self.ui.radioButton_PleuralEffusion_1,
+            self.ui.radioButton_PleuralEffusion_2,
+            self.ui.radioButton_PleuralEffusion_3,
+            self.ui.radioButton_PleuralEffusion_4,
+            self.ui.radioButton_PleuralEffusion_5
+        ]:
+            radio_button.setChecked(False)
+
+        # Reset Atelectasis checkboxes
+        for checkbox in [
+            self.ui.checkBox_Atelectasis_No,
+            self.ui.checkBox_Atelectasis_Yes
+        ]:
+            checkbox.setChecked(False)
+
+        # Reset Extrathoracic checkboxes
+        for checkbox in [
+            self.ui.checkBox_ExtraThoracicMPM_No,
+            self.ui.checkBox_ExtraThoracicMPM_Yes
+        ]:
+            checkbox.setChecked(False)
+
+        # Reset Chest Wall Metastasis radio buttons
+        for radio_button in [
+            self.ui.radioButton_ChestWallMetastasis_No,
+            self.ui.radioButton_ChestWallMetastasis_DrainSite,
+            self.ui.radioButton_ChestWallMetastasis_Yes
+        ]:
+            radio_button.setChecked(False)
+
+        # Reset the comment section
+        self.ui.comment.setPlainText("")
 
     def set_segmentation_and_mask_for_segmentation_editor(self):
         slicer.app.processEvents()
@@ -255,8 +380,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         slicer.mrmlScene.AddNode(segmentEditorNode)
         self.segmentEditorWidget.setMRMLSegmentEditorNode(segmentEditorNode)
         self.segmentEditorWidget.setSegmentationNode(self.segmentation_node)
-        self.segmentEditorWidget.setMasterVolumeNode(self.volume_node)
-
+        self.segmentEditorWidget.setSourceVolumeNode(self.volume_node)
 
     def cleanup(self):
         """
