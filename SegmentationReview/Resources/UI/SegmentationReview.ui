@@ -66,12 +66,12 @@
           <rect>
            <x>10</x>
            <y>60</y>
-           <width>231</width>
+           <width>400</width>
            <height>21</height>
           </rect>
          </property>
          <property name="text">
-          <string>3 - Unacceptable,  major changes</string>
+          <string>3 - Neutral, Acceptable for research, Unacceptable for clinics</string>
          </property>
         </widget>
         <widget class="QRadioButton" name="radioButton_4">
@@ -84,7 +84,7 @@
           </rect>
          </property>
          <property name="text">
-          <string>4 - Unacceptable,  not visible </string>
+          <string>4 - Unacceptable,  major changes </string>
          </property>
         </widget>
         <widget class="QRadioButton" name="radioButton_5">
@@ -97,7 +97,7 @@
           </rect>
          </property>
          <property name="text">
-          <string>5 - Bad image</string>
+          <string>5 - Unacceptable, better to start from scratch</string>
          </property>
         </widget>
         <widget class="QPlainTextEdit" name="comment">
@@ -125,7 +125,236 @@
         </widget>
        </widget>
       </item>
-      <item row="4" column="1">
+	        <!-- Begin: Pleural Effusion Likert Score -->
+      <item row="5" column="1">
+       <widget class="QGroupBox" name="buttongroup_PleuralEffusion">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>150</height>
+         </size>
+        </property>
+        <property name="title">
+         <string>Likert Score for Pleural Effusion:</string>
+        </property>
+        <widget class="QRadioButton" name="radioButton_PleuralEffusion_1">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>20</y>
+           <width>201</width>
+           <height>21</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>1 - No Effusion</string>
+         </property>
+        </widget>
+		<widget class="QRadioButton" name="radioButton_PleuralEffusion_2">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>40</y>
+           <width>400</width>
+           <height>21</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>2 - Spots: Small, localized areas of effusion</string>
+         </property>
+        </widget>
+		<widget class="QRadioButton" name="radioButton_PleuralEffusion_3">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>60</y>
+           <width>400</width>
+           <height>21</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>3 - Minor: Effusion noticeable but not affecting a significant portion of the lung</string>
+         </property>
+        </widget>
+		<widget class="QRadioButton" name="radioButton_PleuralEffusion_4">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>80</y>
+           <width>400</width>
+           <height>21</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>4 - Major: Extensive effusion affecting a large portion of the lung</string>
+         </property>
+        </widget>
+		<widget class="QRadioButton" name="radioButton_PleuralEffusion_5">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>100</y>
+           <width>400</width>
+           <height>21</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>5 - Full Lung Effusion</string>
+         </property>
+        </widget>
+        <!-- ... Replicate for other scores ... -->
+
+        <widget class="QLabel" name="status_checked_PleuralEffusion">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>130</y>
+           <width>71</width>
+           <height>16</height>
+          </rect>
+         </property>
+        </widget>
+       </widget>
+      </item>
+      <!-- End: Pleural Effusion Likert Score -->
+	  <item row="6" column="1">
+	   <widget class="QGroupBox" name="buttongroup_Atelectasis">
+	    <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>45</height>
+         </size>
+        </property>
+		<property name="title">
+		 <string>Atelectasis:</string>
+		</property>
+		<widget class="QRadioButton" name="checkBox_Atelectasis_No">
+		 <property name="geometry">
+		  <rect>
+		   <x>10</x>
+		   <y>20</y>
+		   <width>95</width>
+		   <height>21</height>
+		  </rect>
+		 </property>
+		 <property name="text">
+		  <string>No</string>
+		 </property>
+		</widget>
+		<widget class="QRadioButton" name="checkBox_Atelectasis_Yes">
+		 <property name="geometry">
+		  <rect>
+		   <x>105</x>
+		   <y>20</y>
+		   <width>90</width>
+		   <height>21</height>
+		  </rect>
+		 </property>
+		 <property name="text">
+		  <string>Yes</string>
+		 </property>
+		</widget>
+	   </widget>
+	</item>
+	<!-- End: Atelectasis -->
+
+	<!-- Begin: Extra Thoracic MPM -->
+	<item row="7" column="1">
+	   <widget class="QGroupBox" name="buttongroup_ExtraThoracicMPM">
+	   	<property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>45</height>
+         </size>
+        </property>
+		<property name="title">
+		 <string>Extra Thoracic MPM:</string>
+		</property>
+		<widget class="QRadioButton" name="checkBox_ExtraThoracicMPM_No">
+		 <property name="geometry">
+		  <rect>
+		   <x>10</x>
+		   <y>20</y>
+		   <width>95</width>
+		   <height>21</height>
+		  </rect>
+		 </property>
+		 <property name="text">
+		  <string>No</string>
+		 </property>
+		</widget>
+		<widget class="QRadioButton" name="checkBox_ExtraThoracicMPM_Yes">
+		 <property name="geometry">
+		  <rect>
+		   <x>105</x>
+		   <y>20</y>
+		   <width>90</width>
+		   <height>21</height>
+		  </rect>
+		 </property>
+		 <property name="text">
+		  <string>Yes</string>
+		 </property>
+		</widget>
+	   </widget>
+	</item>
+	<!-- End: Extra Thoracic MPM -->
+
+	<!-- Begin: Chest Wall Metastasis -->
+	<item row="8" column="1">
+	   <widget class="QGroupBox" name="buttongroup_ChestWallMetastasis">
+	   	<property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>45</height>
+         </size>
+        </property>
+		<property name="title">
+		 <string>Chest Wall Metastasis:</string>
+		</property>
+		<widget class="QRadioButton" name="radioButton_ChestWallMetastasis_No">
+		 <property name="geometry">
+		  <rect>
+		   <x>10</x>
+		   <y>20</y>
+		   <width>40</width>
+		   <height>21</height>
+		  </rect>
+		 </property>
+		 <property name="text">
+		  <string>No</string>
+		 </property>
+		</widget>
+		<widget class="QRadioButton" name="radioButton_ChestWallMetastasis_DrainSite">
+		 <property name="geometry">
+		  <rect>
+		   <x>105</x>
+		   <y>20</y>
+		   <width>160</width>
+		   <height>21</height>
+		  </rect>
+		 </property>
+		 <property name="text">
+		  <string>Yes, but drain site</string>
+		 </property>
+		</widget>
+		<widget class="QRadioButton" name="radioButton_ChestWallMetastasis_Yes">
+		 <property name="geometry">
+		  <rect>
+		   <x>300</x>
+		   <y>20</y>
+		   <width>40</width>
+		   <height>21</height>
+		  </rect>
+		 </property>
+		 <property name="text">
+		  <string>Yes</string>
+		 </property>
+		</widget>
+	   </widget>
+	</item>
+
+      <item row="9" column="1">
        <widget class="QPushButton" name="save_and_next">
         <property name="text">
          <string>Save and Next</string>
