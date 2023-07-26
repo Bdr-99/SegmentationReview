@@ -127,6 +127,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         self.atlasDirectoryButton.directoryChanged.connect(self.onAtlasDirectoryChanged)
         self.ui.save_and_next.connect('clicked(bool)', self.save_and_next_clicked)
         self.ui.overwrite_mask.connect('clicked(bool)', self.overwrite_mask_clicked)
+        self.ui.btnToggleSegmentationDisplay.clicked.connect(self.toggleSegmentationDisplay)
 
         # add a paint brush from segment editor window
         # Create a new segment editor widget and add it to the NiftyViewerWidget
@@ -151,7 +152,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         self.segmentEditorWidget.setMRMLScene(slicer.mrmlScene)
         self.segmentEditorWidget.unorderedEffectsVisible = False
         self.segmentEditorWidget.setEffectNameOrder([
-            'Paint', 'Draw', 'Erase', 'Threshold',
+            'Paint', 'Erase', 'Threshold',
         ])
         self.layout.addWidget(self.segmentEditorWidget)
     
@@ -196,14 +197,14 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         else:
             columns = [
                 'file', 'generic_annotation', 'pleural_effusion',
-                'atelectasis', 'extrathoracic', 'chest_wall_mets', 'comment'
+                'atelectasis', 'extrathoracic', 'chest_wall_mets', 'contrast' 'comment'
             ]
             self.current_df = pd.DataFrame(columns=columns)
             self.current_index = 0
 
         # count the number of files in the directory
         for file in os.listdir(directory):
-            if ".nii" in file and "_mask" not in file:
+            if ".nii" in file and "_0000" in file:
                 self.n_files += 1
                 if os.path.exists(directory + "/" + file.split("_0000.nii.gz")[0] + ".nii.gz"):
                     self.nifti_files.append(directory + "/" + file)
@@ -253,6 +254,11 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
             self.ui.radioButton_ChestWallMetastasis_Yes,
         ])
 
+        contrast_score = self.get_likert_score_from_ui([
+            self.ui.radioButton_Contrast_No,
+            self.ui.radioButton_Contrast_Arterial,
+            self.ui.radioButton_Contrast_Hepatic,
+        ])
         # Now save them as before, but now with additional columns in your dataframe
         new_row = {
             'file': self.nifti_files[self.current_index].split(os.sep)[-1],
@@ -264,6 +270,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
             'atelectasis': atelectasis_score,
             'extrathoracic': extrathoracic_score,
             'chest_wall_mets': chest_wall_mets_score,
+            'contrast': contrast_score,
             'comment': self.ui.comment.toPlainText()
         }
 
@@ -286,6 +293,28 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         else:
             print("All files checked")
 
+    def toggleSegmentationDisplay(self):
+        if not self.segmentation_node:
+            print("Segmentation node is not loaded yet!")
+            return
+
+        displayNode = self.segmentation_node.GetDisplayNode()
+
+        if not displayNode:
+            print("Segmentation doesn't have a display node!")
+            return
+
+        # Check current display mode
+        currentMode = displayNode.GetVisibility2DFill()
+
+        if currentMode:  # If it's currently in fill mode
+            displayNode.SetVisibility2DFill(False)  # Set fill off
+            displayNode.SetVisibility2DOutline(True)  # Set outline on
+            self.ui.btnToggleSegmentationDisplay.setText("Show Fill")
+        else:  # If it's currently in outline mode
+            displayNode.SetVisibility2DFill(True)  # Set fill on
+            displayNode.SetVisibility2DOutline(False)  # Set outline off
+            self.ui.btnToggleSegmentationDisplay.setText("Show Outline")
 
     def get_likert_score_from_ui(self, radio_buttons):
         for idx, radio_button in enumerate(radio_buttons, 1):
@@ -316,6 +345,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         segmentationDisplayNode.SetVisibility2DFill(False)  # Do not show filled region in 2D
         segmentationDisplayNode.SetVisibility2DOutline(True)  # Show outline in 2D
         segmentationDisplayNode.SetColor(self.segmentation_color)
+        segmentationDisplayNode.SetVisibility(False)
 
         self.set_segmentation_and_mask_for_segmentation_editor()
 
