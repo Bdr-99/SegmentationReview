@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>381</width>
-    <height>426</height>
+    <height>670</height>
    </rect>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
@@ -125,13 +125,12 @@
         </widget>
        </widget>
       </item>
-	        <!-- Begin: Pleural Effusion Likert Score -->
       <item row="5" column="1">
        <widget class="QGroupBox" name="buttongroup_PleuralEffusion">
         <property name="minimumSize">
          <size>
           <width>0</width>
-          <height>150</height>
+          <height>130</height>
          </size>
         </property>
         <property name="title">
@@ -150,7 +149,7 @@
           <string>1 - No Effusion</string>
          </property>
         </widget>
-		<widget class="QRadioButton" name="radioButton_PleuralEffusion_2">
+        <widget class="QRadioButton" name="radioButton_PleuralEffusion_2">
          <property name="geometry">
           <rect>
            <x>10</x>
@@ -163,7 +162,7 @@
           <string>2 - Spots: Small, localized areas of effusion</string>
          </property>
         </widget>
-		<widget class="QRadioButton" name="radioButton_PleuralEffusion_3">
+        <widget class="QRadioButton" name="radioButton_PleuralEffusion_3">
          <property name="geometry">
           <rect>
            <x>10</x>
@@ -176,7 +175,7 @@
           <string>3 - Minor: Effusion noticeable but not affecting a significant portion of the lung</string>
          </property>
         </widget>
-		<widget class="QRadioButton" name="radioButton_PleuralEffusion_4">
+        <widget class="QRadioButton" name="radioButton_PleuralEffusion_4">
          <property name="geometry">
           <rect>
            <x>10</x>
@@ -189,7 +188,7 @@
           <string>4 - Major: Extensive effusion affecting a large portion of the lung</string>
          </property>
         </widget>
-		<widget class="QRadioButton" name="radioButton_PleuralEffusion_5">
+        <widget class="QRadioButton" name="radioButton_PleuralEffusion_5">
          <property name="geometry">
           <rect>
            <x>10</x>
@@ -202,8 +201,6 @@
           <string>5 - Full Lung Effusion</string>
          </property>
         </widget>
-        <!-- ... Replicate for other scores ... -->
-
         <widget class="QLabel" name="status_checked_PleuralEffusion">
          <property name="geometry">
           <rect>
@@ -216,149 +213,193 @@
         </widget>
        </widget>
       </item>
-      <!-- End: Pleural Effusion Likert Score -->
-	  <item row="6" column="1">
-	   <widget class="QGroupBox" name="buttongroup_Atelectasis">
-	    <property name="minimumSize">
+      <item row="6" column="1">
+       <widget class="QGroupBox" name="buttongroup_Atelectasis">
+        <property name="minimumSize">
          <size>
           <width>0</width>
           <height>45</height>
          </size>
         </property>
-		<property name="title">
-		 <string>Atelectasis:</string>
-		</property>
-		<widget class="QRadioButton" name="checkBox_Atelectasis_No">
-		 <property name="geometry">
-		  <rect>
-		   <x>10</x>
-		   <y>20</y>
-		   <width>95</width>
-		   <height>21</height>
-		  </rect>
-		 </property>
-		 <property name="text">
-		  <string>No</string>
-		 </property>
-		</widget>
-		<widget class="QRadioButton" name="checkBox_Atelectasis_Yes">
-		 <property name="geometry">
-		  <rect>
-		   <x>105</x>
-		   <y>20</y>
-		   <width>90</width>
-		   <height>21</height>
-		  </rect>
-		 </property>
-		 <property name="text">
-		  <string>Yes</string>
-		 </property>
-		</widget>
-	   </widget>
-	</item>
-	<!-- End: Atelectasis -->
-
-	<!-- Begin: Extra Thoracic MPM -->
-	<item row="7" column="1">
-	   <widget class="QGroupBox" name="buttongroup_ExtraThoracicMPM">
-	   	<property name="minimumSize">
+        <property name="title">
+         <string>Atelectasis:</string>
+        </property>
+        <widget class="QRadioButton" name="checkBox_Atelectasis_No">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>20</y>
+           <width>95</width>
+           <height>21</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>No</string>
+         </property>
+        </widget>
+        <widget class="QRadioButton" name="checkBox_Atelectasis_Yes">
+         <property name="geometry">
+          <rect>
+           <x>105</x>
+           <y>20</y>
+           <width>90</width>
+           <height>21</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Yes</string>
+         </property>
+        </widget>
+       </widget>
+      </item>
+      <item row="7" column="1">
+       <widget class="QGroupBox" name="buttongroup_ExtraThoracicMPM">
+        <property name="minimumSize">
          <size>
           <width>0</width>
           <height>45</height>
          </size>
         </property>
-		<property name="title">
-		 <string>Extra Thoracic MPM:</string>
-		</property>
-		<widget class="QRadioButton" name="checkBox_ExtraThoracicMPM_No">
-		 <property name="geometry">
-		  <rect>
-		   <x>10</x>
-		   <y>20</y>
-		   <width>95</width>
-		   <height>21</height>
-		  </rect>
-		 </property>
-		 <property name="text">
-		  <string>No</string>
-		 </property>
-		</widget>
-		<widget class="QRadioButton" name="checkBox_ExtraThoracicMPM_Yes">
-		 <property name="geometry">
-		  <rect>
-		   <x>105</x>
-		   <y>20</y>
-		   <width>90</width>
-		   <height>21</height>
-		  </rect>
-		 </property>
-		 <property name="text">
-		  <string>Yes</string>
-		 </property>
-		</widget>
-	   </widget>
-	</item>
-	<!-- End: Extra Thoracic MPM -->
-
-	<!-- Begin: Chest Wall Metastasis -->
-	<item row="8" column="1">
-	   <widget class="QGroupBox" name="buttongroup_ChestWallMetastasis">
-	   	<property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>45</height>
-         </size>
+        <property name="title">
+         <string>Extra Thoracic MPM:</string>
         </property>
-		<property name="title">
-		 <string>Chest Wall Metastasis:</string>
-		</property>
-		<widget class="QRadioButton" name="radioButton_ChestWallMetastasis_No">
-		 <property name="geometry">
-		  <rect>
-		   <x>10</x>
-		   <y>20</y>
-		   <width>40</width>
-		   <height>21</height>
-		  </rect>
-		 </property>
-		 <property name="text">
-		  <string>No</string>
-		 </property>
-		</widget>
-		<widget class="QRadioButton" name="radioButton_ChestWallMetastasis_DrainSite">
-		 <property name="geometry">
-		  <rect>
-		   <x>105</x>
-		   <y>20</y>
-		   <width>160</width>
-		   <height>21</height>
-		  </rect>
-		 </property>
-		 <property name="text">
-		  <string>Yes, but drain site</string>
-		 </property>
-		</widget>
-		<widget class="QRadioButton" name="radioButton_ChestWallMetastasis_Yes">
-		 <property name="geometry">
-		  <rect>
-		   <x>300</x>
-		   <y>20</y>
-		   <width>40</width>
-		   <height>21</height>
-		  </rect>
-		 </property>
-		 <property name="text">
-		  <string>Yes</string>
-		 </property>
-		</widget>
-	   </widget>
-	</item>
-
+        <widget class="QRadioButton" name="checkBox_ExtraThoracicMPM_No">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>20</y>
+           <width>95</width>
+           <height>21</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>No</string>
+         </property>
+        </widget>
+        <widget class="QRadioButton" name="checkBox_ExtraThoracicMPM_Yes">
+         <property name="geometry">
+          <rect>
+           <x>105</x>
+           <y>20</y>
+           <width>90</width>
+           <height>21</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Yes</string>
+         </property>
+        </widget>
+       </widget>
+      </item>
       <item row="9" column="1">
+       <widget class="QGroupBox" name="buttongroup_Contrast">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>45</height>
+         </size>
+        </property>
+        <property name="title">
+         <string>Contrast Phase:</string>
+        </property>
+        <widget class="QRadioButton" name="radioButton_Contrast_No">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>20</y>
+           <width>100</width>
+           <height>21</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>No Contrast</string>
+         </property>
+        </widget>
+        <widget class="QRadioButton" name="radioButton_Contrast_Arterial">
+         <property name="geometry">
+          <rect>
+           <x>105</x>
+           <y>20</y>
+           <width>160</width>
+           <height>21</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Arterial</string>
+         </property>
+        </widget>
+        <widget class="QRadioButton" name="radioButton_Contrast_Hepatic">
+         <property name="geometry">
+          <rect>
+           <x>240</x>
+           <y>20</y>
+           <width>100</width>
+           <height>21</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Hepatic</string>
+         </property>
+        </widget>
+       </widget>
+      </item>
+      <item row="10" column="1">
        <widget class="QPushButton" name="save_and_next">
         <property name="text">
-         <string>Save and Next</string>
+         <string>Save Mask and Next Case</string>
         </property>
+       </widget>
+      </item>
+      <item row="8" column="1">
+       <widget class="QGroupBox" name="buttongroup_ChestWallMetastasis">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>45</height>
+         </size>
+        </property>
+        <property name="title">
+         <string>Chest Wall Metastasis:</string>
+        </property>
+        <widget class="QRadioButton" name="radioButton_ChestWallMetastasis_No">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>20</y>
+           <width>40</width>
+           <height>21</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>No</string>
+         </property>
+        </widget>
+        <widget class="QRadioButton" name="radioButton_ChestWallMetastasis_DrainSite">
+         <property name="geometry">
+          <rect>
+           <x>105</x>
+           <y>20</y>
+           <width>160</width>
+           <height>21</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Yes, but drain site</string>
+         </property>
+        </widget>
+        <widget class="QRadioButton" name="radioButton_ChestWallMetastasis_Yes">
+         <property name="geometry">
+          <rect>
+           <x>240</x>
+           <y>20</y>
+           <width>40</width>
+           <height>21</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Yes</string>
+         </property>
+        </widget>
        </widget>
       </item>
      </layout>
@@ -367,7 +408,14 @@
    <item>
     <widget class="QPushButton" name="overwrite_mask">
      <property name="text">
-      <string>Overwrite Edited Mask </string>
+      <string>Save Mask </string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="btnToggleSegmentationDisplay">
+     <property name="text">
+      <string>Toggle Segmentation Outline</string>
      </property>
     </widget>
    </item>
