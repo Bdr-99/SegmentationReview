@@ -220,6 +220,12 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
 
     def save_and_next_clicked(self):
         # Generic category (assuming it's kept the same for reference)
+
+        if not self.all_responses_provided():
+            print("Please provide all required responses before proceeding.")
+            # Optionally, show a dialog/message to the user
+            return
+
         generic_likert_score = self.get_likert_score_from_ui([
             self.ui.radioButton_1,
             self.ui.radioButton_2,
@@ -288,7 +294,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
             self.load_nifti_file()
             self.time_start = time.time()
             self.ui.status_checked.setText("Checked: " + str(self.current_index) + " / " + str(self.n_files - 1))
-            self.reset_ui_elements()
+            self.resetUIElements()
             self.ui.comment.setPlainText("")
         else:
             print("All files checked")
@@ -351,57 +357,26 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
 
         print(file_path, segmentation_file_path)
 
-    def reset_ui_elements(self):
-        # Reset Generic category radio buttons
+    def resetUIElements(self):
         print("Resetting UI elements...")
-        self.ui.radioButton_1.setChecked(False)
-        self.ui.radioButton_1.update()  # explicitly force an update
-        print(f"radioButton_1 state after reset: {self.ui.radioButton_1.isChecked()}")
-        slicer.app.processEvents()  # process any pending UI events
 
-        for radio_button in [
-            self.ui.radioButton_1,
-            self.ui.radioButton_2,
-            self.ui.radioButton_3,
-            self.ui.radioButton_4,
-            self.ui.radioButton_5
-        ]:
-            radio_button.setChecked(False)
+        # List of all dummy radio buttons
+        dummy_radio_buttons = [
+            self.ui.radioButton_Dummy,  # for the generic likert score group
+            self.ui.radioButton_PleuralEffusion_Dummy,  # for the PleuralEffusion group
+            self.ui.radioButton_Atelectasis_Dummy,  # for the ChestWallMetastasis group
+            self.ui.checkBox_ExtraThoracicMPM_Dummy,  # for the generic likert score group
+            self.ui.radioButton_ChestWallMetastasis_Dummy,  # for the ChestWallMetastasis group
+            self.ui.radioButton_Contrast_Dummy  # for the PleuralEffusion group
+        ]
 
-        # Reset Pleural effusion radio buttons
-        for radio_button in [
-            self.ui.radioButton_PleuralEffusion_1,
-            self.ui.radioButton_PleuralEffusion_2,
-            self.ui.radioButton_PleuralEffusion_3,
-            self.ui.radioButton_PleuralEffusion_4,
-            self.ui.radioButton_PleuralEffusion_5
-        ]:
-            radio_button.setChecked(False)
-
-        # Reset Atelectasis checkboxes
-        for checkbox in [
-            self.ui.checkBox_Atelectasis_No,
-            self.ui.checkBox_Atelectasis_Yes
-        ]:
-            checkbox.setChecked(False)
-
-        # Reset Extrathoracic checkboxes
-        for checkbox in [
-            self.ui.checkBox_ExtraThoracicMPM_No,
-            self.ui.checkBox_ExtraThoracicMPM_Yes
-        ]:
-            checkbox.setChecked(False)
-
-        # Reset Chest Wall Metastasis radio buttons
-        for radio_button in [
-            self.ui.radioButton_ChestWallMetastasis_No,
-            self.ui.radioButton_ChestWallMetastasis_DrainSite,
-            self.ui.radioButton_ChestWallMetastasis_Yes
-        ]:
-            radio_button.setChecked(False)
+        # Check all dummy radio buttons to effectively uncheck the other buttons in the group
+        for dummy_rb in dummy_radio_buttons:
+            dummy_rb.setChecked(True)
 
         # Reset the comment section
         self.ui.comment.setPlainText("")
+        print("All UI elements reset.")
 
     def set_segmentation_and_mask_for_segmentation_editor(self):
         slicer.app.processEvents()
@@ -411,6 +386,26 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         self.segmentEditorWidget.setMRMLSegmentEditorNode(segmentEditorNode)
         self.segmentEditorWidget.setSegmentationNode(self.segmentation_node)
         self.segmentEditorWidget.setSourceVolumeNode(self.volume_node)
+
+    def all_responses_provided(self):
+        # List of all dummy radio buttons
+        dummy_radio_buttons = [
+            self.ui.radioButton_Dummy,  # for the generic likert score group
+            self.ui.radioButton_PleuralEffusion_Dummy,  # for the PleuralEffusion group
+            self.ui.radioButton_Atelectasis_Dummy,  # for the ChestWallMetastasis group
+            self.ui.checkBox_ExtraThoracicMPM_Dummy,  # for the generic likert score group
+            self.ui.radioButton_ChestWallMetastasis_Dummy,  # for the ChestWallMetastasis group
+            self.ui.radioButton_Contrast_Dummy  # for the PleuralEffusion group
+        ]
+
+        # Check if any dummy radio button is checked
+        for dummy_rb in dummy_radio_buttons:
+            if dummy_rb.isChecked():
+                return False
+
+        # You can add more validation checks for other responses if needed
+
+        return True
 
     def cleanup(self):
         """
