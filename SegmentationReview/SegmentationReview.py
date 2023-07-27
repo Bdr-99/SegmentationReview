@@ -1,7 +1,6 @@
 import logging
 import os
 
-
 import vtk
 import pathlib
 import slicer
@@ -15,14 +14,17 @@ try:
     import pandas as pd
     import numpy as np
     import SimpleITK as sitk
+
 except:
     slicer.util.pip_install('pandas')
     slicer.util.pip_install('numpy')
     slicer.util.pip_install('SimpleITK')
-    
+
     import pandas as pd
     import numpy as np
     import SimpleITK as sitk
+
+
 #
 # SegmentationReview
 #
@@ -34,16 +36,16 @@ class SegmentationReview(ScriptedLoadableModule):
 
     def __init__(self, parent):
         ScriptedLoadableModule.__init__(self, parent)
-        self.parent.title = "SegmentationReview"  
-        self.parent.categories = ["Examples"]  
-        self.parent.dependencies = []  
-        self.parent.contributors = ["Anna Zapaishchykova (BWH), Dr. Benjamin H. Kann, AIM-Harvard"]  
+        self.parent.title = "SegmentationReview"
+        self.parent.categories = ["Examples"]
+        self.parent.dependencies = []
+        self.parent.contributors = ["Anna Zapaishchykova (BWH), Dr. Benjamin H. Kann, AIM-Harvard"]
         self.parent.helpText = """
 Slicer3D extension for rating using Likert-type score Deep-learning generated segmentations, with segment editor funtionality. 
 Created to speed up the validation process done by a clinician - the dataset loads in one batch with no need to load masks and volumes separately.
 It is important that each nii file has a corresponding mask file with the same name and the suffix _mask.nii
 """
-       
+
         self.parent.acknowledgementText = """
 This file was developed by Anna Zapaishchykova, BWH. 
 """
@@ -73,8 +75,8 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         self.segmentation_color = [1, 0, 0]
         self.nifti_files = []
         self.segmentation_files = []
-        self.directory=None
-        self.current_index=0
+        self.directory = None
+        self.current_index = 0
         self.likert_scores = []
         self.likert_scores_confidence = []
         self.n_files = 0
@@ -91,7 +93,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         # Load widget from .ui file (created by Qt Designer).
         # Additional widgets can be instantiated manually and added to self.layout.
         uiWidget = slicer.util.loadUI(self.resourcePath('UI/SegmentationReview.ui'))
-        
+
         # Layout within the collapsible button
         parametersCollapsibleButton = ctk.ctkCollapsibleButton()
         parametersCollapsibleButton.text = "Input path"
@@ -104,7 +106,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
 
         self.atlasDirectoryButton = ctk.ctkDirectoryButton()
         parametersFormLayout.addRow("Directory: ", self.atlasDirectoryButton)
-        
+
         # Set scene in MRML widgets. Make sure that in Qt designer the top-level qMRMLWidget's
         # "mrmlSceneChanged(vtkMRMLScene*)" signal in is connected to each MRML widget's.
         # "setMRMLScene(vtkMRMLScene*)" slot.
@@ -119,9 +121,9 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         # These connections ensure that we update parameter node when scene is closed
         self.addObserver(slicer.mrmlScene, slicer.mrmlScene.StartCloseEvent, self.onSceneStartClose)
         self.addObserver(slicer.mrmlScene, slicer.mrmlScene.EndCloseEvent, self.onSceneEndClose)
-        
+
         self.ui.PathLineEdit = ctk.ctkDirectoryButton()
-        
+
         # These connections ensure that whenever user changes some settings on the GUI, that is saved in the MRML scene
         # (in the selected parameter node).
         self.atlasDirectoryButton.directoryChanged.connect(self.onAtlasDirectoryChanged)
@@ -132,20 +134,23 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         # add a paint brush from segment editor window
         # Create a new segment editor widget and add it to the NiftyViewerWidget
         self._createSegmentEditorWidget_()
-        
-        #self.editorWidget.volumes.collapsed = True
-         # Set parameter node first so that the automatic selections made when the scene is set are saved
-            
-        
+
+        defaultVolumeDisplayNode = slicer.mrmlScene.CreateNodeByClass("vtkMRMLScalarVolumeDisplayNode")
+        defaultVolumeDisplayNode.AutoWindowLevelOff()
+        defaultVolumeDisplayNode.SetWindowLevelMinMax(-125, 225)
+        slicer.mrmlScene.AddDefaultNode(defaultVolumeDisplayNode)
+        # self.editorWidget.volumes.collapsed = True
+        # Set parameter node first so that the automatic selections made when the scene is set are saved
+
         # Make sure parameter node is initialized (needed for module reload)
-        #self.initializeParameterNode()
+        # self.initializeParameterNode()
 
     def _createSegmentEditorWidget_(self):
         """Create and initialize a customize Slicer Editor which contains just some the tools that we need for the segmentation"""
 
         import qSlicerSegmentationsModuleWidgetsPythonQt
 
-        #advancedCollapsibleButton
+        # advancedCollapsibleButton
         self.segmentEditorWidget = qSlicerSegmentationsModuleWidgetsPythonQt.qMRMLSegmentEditorWidget(
         )
         self.segmentEditorWidget.setMaximumNumberOfUndoStates(10)
@@ -155,24 +160,28 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
             'Paint', 'Erase', 'Threshold',
         ])
         self.layout.addWidget(self.segmentEditorWidget)
-    
+
     def overwrite_mask_clicked(self):
         # overwrite self.segmentEditorWidget.segmentationNode()
-        #segmentation_node = slicer.mrmlScene.GetFirstNodeByClass('vtkMRMLSegmentationNode')
+        # segmentation_node = slicer.mrmlScene.GetFirstNodeByClass('vtkMRMLSegmentationNode')
 
         # Get the file path where you want to save the segmentation node
-        file_path = self.directory+"/t.seg.nrrd"
+        file_path = self.directory + "/t.seg.nrrd"
         # Save the segmentation node to file as nifti
-        i = 1 ## version number seg
-        file_path_nifti = self.directory+"/"+self.segmentation_files[self.current_index].split("/")[-1].split(".nii.gz")[0]+"_v"+str(i)+".nii.gz"
+        i = 1  ## version number seg
+        file_path_nifti = self.directory + "/" + \
+                          self.segmentation_files[self.current_index].split("/")[-1].split(".nii.gz")[0] + "_v" + str(
+            i) + ".nii.gz"
         # Save the segmentation node to file
         slicer.util.saveNode(self.segmentation_node, file_path)
-        
+
         img = sitk.ReadImage(file_path)
 
         while os.path.exists(file_path_nifti):
             i += 1
-            file_path_nifti = self.directory+"/"+self.segmentation_files[self.current_index].split("/")[-1].split(".nii.gz")[0]+"_v"+str(i)+".nii.gz"
+            file_path_nifti = self.directory + "/" + \
+                              self.segmentation_files[self.current_index].split("/")[-1].split(".nii.gz")[
+                                  0] + "_v" + str(i) + ".nii.gz"
         print('Saving segmentation to file: ', file_path_nifti)
         sitk.WriteImage(img, file_path_nifti)
 
@@ -213,6 +222,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
                     print("No mask for file: ", file)
 
         self.ui.status_checked.setText("Checked: " + str(self.current_index) + " / " + str(self.n_files - 1))
+        self.resetUIElements()
 
         # load first file with mask
         self.load_nifti_file()
@@ -223,7 +233,6 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
 
         if not self.all_responses_provided():
             print("Please provide all required responses before proceeding.")
-            # Optionally, show a dialog/message to the user
             return
 
         generic_likert_score = self.get_likert_score_from_ui([
@@ -463,7 +472,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         Observation is needed because when the parameter node is changed then the GUI must be updated immediately.
         """
 
-        #if inputParameterNode:
+        # if inputParameterNode:
         #    self.logic.setDefaultParameters(inputParameterNode)
 
         # Unobserve previously selected parameter node and add an observer to the newly selected.
@@ -489,7 +498,6 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
 
         # Make sure GUI changes do not call updateParameterNodeFromGUI (it could cause infinite loop)
         self._updatingGUIFromParameterNode = True
-
 
         # All the GUI updates are done
         self._updatingGUIFromParameterNode = False
@@ -528,7 +536,7 @@ class SlicerLikertDLratingLogic(ScriptedLoadableModuleLogic):
         """
         ScriptedLoadableModuleLogic.__init__(self)
 
-    
+
 #
 # SlicerLikertDLratingTest
 #
