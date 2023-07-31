@@ -82,6 +82,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         self.n_files = 0
         self.current_df = None
         self.time_start = time.time()
+        self.dummy_radio_buttons = []
 
     def setup(self):
         """
@@ -130,6 +131,16 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         self.ui.save_and_next.connect('clicked(bool)', self.save_and_next_clicked)
         self.ui.overwrite_mask.connect('clicked(bool)', self.overwrite_mask_clicked)
         self.ui.btnToggleSegmentationDisplay.clicked.connect(self.toggleSegmentationDisplay)
+
+        self.dummy_radio_buttons = [
+            self.ui.radioButton_Dummy,  # for the generic likert score group
+            self.ui.radioButton_PleuralEffusion_Dummy,  # for the PleuralEffusion group
+            self.ui.radioButton_Atelectasis_Dummy,  # for the ChestWallMetastasis group
+            self.ui.checkBox_ExtraThoracicMPM_Dummy,  # for the generic likert score group
+            self.ui.radioButton_ChestWallMetastasis_Dummy,  # for the ChestWallMetastasis group
+            self.ui.radioButton_Contrast_Dummy,  # for the PleuralEffusion group
+            self.ui.radioButton_Confidence_Dummy
+        ]
 
         # add a paint brush from segment editor window
         # Create a new segment editor widget and add it to the NiftyViewerWidget
@@ -243,6 +254,14 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
             self.ui.radioButton_5
         ])
 
+        confidence_score = self.get_likert_score_from_ui([
+            self.ui.radioButton_Confidence_1,
+            self.ui.radioButton_Confidence_2,
+            self.ui.radioButton_Confidence_3,
+            self.ui.radioButton_Confidence_4,
+            self.ui.radioButton_Confidence_5
+        ])
+
         # Pleural effusion
         pleural_effusion_score = self.get_likert_score_from_ui([
             self.ui.radioButton_PleuralEffusion_1,
@@ -286,6 +305,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
             'extrathoracic': extrathoracic_score,
             'chest_wall_mets': chest_wall_mets_score,
             'contrast': contrast_score,
+            'confidence': confidence_score,
             'comment': self.ui.comment.toPlainText()
         }
 
@@ -367,20 +387,8 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         print(file_path, segmentation_file_path)
 
     def resetUIElements(self):
-        print("Resetting UI elements...")
-
-        # List of all dummy radio buttons
-        dummy_radio_buttons = [
-            self.ui.radioButton_Dummy,  # for the generic likert score group
-            self.ui.radioButton_PleuralEffusion_Dummy,  # for the PleuralEffusion group
-            self.ui.radioButton_Atelectasis_Dummy,  # for the ChestWallMetastasis group
-            self.ui.checkBox_ExtraThoracicMPM_Dummy,  # for the generic likert score group
-            self.ui.radioButton_ChestWallMetastasis_Dummy,  # for the ChestWallMetastasis group
-            self.ui.radioButton_Contrast_Dummy  # for the PleuralEffusion group
-        ]
-
         # Check all dummy radio buttons to effectively uncheck the other buttons in the group
-        for dummy_rb in dummy_radio_buttons:
+        for dummy_rb in self.dummy_radio_buttons:
             dummy_rb.setChecked(True)
 
         # Reset the comment section
@@ -398,17 +406,9 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
 
     def all_responses_provided(self):
         # List of all dummy radio buttons
-        dummy_radio_buttons = [
-            self.ui.radioButton_Dummy,  # for the generic likert score group
-            self.ui.radioButton_PleuralEffusion_Dummy,  # for the PleuralEffusion group
-            self.ui.radioButton_Atelectasis_Dummy,  # for the ChestWallMetastasis group
-            self.ui.checkBox_ExtraThoracicMPM_Dummy,  # for the generic likert score group
-            self.ui.radioButton_ChestWallMetastasis_Dummy,  # for the ChestWallMetastasis group
-            self.ui.radioButton_Contrast_Dummy  # for the PleuralEffusion group
-        ]
 
         # Check if any dummy radio button is checked
-        for dummy_rb in dummy_radio_buttons:
+        for dummy_rb in self.dummy_radio_buttons:
             if dummy_rb.isChecked():
                 return False
 
