@@ -217,7 +217,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         else:
             columns = [
                 'file', 'generic_annotation', 'pleural_effusion',
-                'atelectasis', 'extrathoracic', 'chest_wall_mets', 'contrast' 'comment'
+                'atelectasis', 'extrathoracic', 'chest_wall_mets', 'contrast', 'confidence', 'comment'
             ]
             self.current_df = pd.DataFrame(columns=columns)
             self.current_index = 0
@@ -278,7 +278,6 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
 
         extrathoracic_score = self.get_likert_score_from_ui([
             self.ui.checkBox_ExtraThoracicMPM_No,
-            # assuming there's a checkBox_ExtraThoracicMPM_Yes
             self.ui.checkBox_ExtraThoracicMPM_Yes,
         ])
 
@@ -314,9 +313,9 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
             print("Error: self.current_df is not a DataFrame!")
             return
 
-        new_df = pd.DataFrame([new_row])
-        self.current_df = pd.concat([self.current_df, new_df], ignore_index=True)
-        self.current_df.to_csv(self.directory + "/annotations.csv", mode='a', header=False, index=False)
+        df = pd.DataFrame([new_row])
+        df.to_csv(self.directory+"/annotations.csv", mode='a', index=False, header=False)
+
         self.overwrite_mask_clicked()
         if self.current_index < self.n_files - 1:
             self.current_index += 1
