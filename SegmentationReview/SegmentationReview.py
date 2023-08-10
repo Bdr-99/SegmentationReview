@@ -130,6 +130,9 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         self.atlasDirectoryButton.directoryChanged.connect(self.onAtlasDirectoryChanged)
         self.ui.save_and_next.connect('clicked(bool)', self.save_and_next_clicked)
         self.ui.overwrite_mask.connect('clicked(bool)', self.overwrite_mask_clicked)
+        self.ui.next_case.connect('clicked(bool)', self.next_case_clicked)
+        self.ui.prev_case.connect('clicked(bool)', self.prev_case_clicked)
+        self.ui.delete_scan.connect('clicked(bool)', self.delete_scan_clicked)
         self.ui.btnToggleSegmentationDisplay.clicked.connect(self.toggleSegmentationDisplay)
 
         self.dummy_radio_buttons = [
@@ -327,6 +330,34 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         else:
             print("All files checked")
 
+    def next_case_clicked(self):
+        if self.current_index < self.n_files - 1:
+            self.current_index += 1
+            self.load_nifti_file()
+            self.time_start = time.time()
+            self.ui.status_checked.setText("Checked: " + str(self.current_index) + " / " + str(self.n_files - 1))
+            self.resetUIElements()
+            self.ui.comment.setPlainText("")
+
+
+    def prev_case_clicked(self):
+        if self.current_index != 0:
+            self.current_index -= 1
+            self.load_nifti_file()
+            self.time_start = time.time()
+            self.ui.status_checked.setText("Checked: " + str(self.current_index) + " / " + str(self.n_files - 1))
+            self.resetUIElements()
+            self.ui.comment.setPlainText("")
+
+
+    def delete_scan_clicked(self):
+        ## Delete the current scan from directory
+        os.remove(self.nifti_files[self.current_index])
+        ## Delete the current segmentation from the list
+        os.remove(self.nifti_files[self.current_index].replace("_0000.nii.gz", ".nii.gz"))
+        self.next_case_clicked()
+
+
     def toggleSegmentationDisplay(self):
         if not self.segmentation_node:
             print("Segmentation node is not loaded yet!")
@@ -379,7 +410,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         segmentationDisplayNode.SetVisibility2DFill(False)  # Do not show filled region in 2D
         segmentationDisplayNode.SetVisibility2DOutline(True)  # Show outline in 2D
         segmentationDisplayNode.SetColor(self.segmentation_color)
-        segmentationDisplayNode.SetVisibility(False)
+        segmentationDisplayNode.SetVisibility(True)
 
         self.set_segmentation_and_mask_for_segmentation_editor()
 
