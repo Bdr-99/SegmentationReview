@@ -599,7 +599,7 @@
       <item row="14" column="1">
        <widget class="QPushButton" name="delete_scan">
         <property name="text">
-         <string>DELETE SCAN AND SEG)</string>
+         <string>DELETE SCAN AND SEG</string>
         </property>
        </widget>
       </item>
