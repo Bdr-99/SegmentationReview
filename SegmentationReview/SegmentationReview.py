@@ -131,13 +131,13 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         self.atlasDirectoryButton.directoryChanged.connect(self.onAtlasDirectoryChanged)
         self.ui.save_and_next.connect('clicked(bool)', self.save_and_next_clicked)
         # self.ui.overwrite_mask.connect('clicked(bool)', self.overwrite_mask_clicked)
-        self.ui.next_case.connect('clicked(bool)', self.next_case_clicked)
-        self.ui.prev_case.connect('clicked(bool)', self.prev_case_clicked)
+        # self.ui.next_case.connect('clicked(bool)', self.next_case_clicked)
+        # self.ui.prev_case.connect('clicked(bool)', self.prev_case_clicked)
         self.ui.btnToggleSegmentationDisplay.clicked.connect(self.toggleSegmentationDisplay)
 
         self.dummy_radio_buttons = [
             self.ui.radioButton_Dummy,  # for the generic likert score group
-            # self.ui.radioButton_Confidence_Dummy,
+            self.ui.radioButton_Lesion_Dummy,
             self.ui.radioButton_Location_Dummy  # for the Location group
         ]
 
@@ -218,13 +218,13 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
                 print("No mask for file: ", file)
 
         # load the .csv file with the old annotations or create a new one
-        if os.path.exists(directory + "/annotations.csv"):
-            self.current_df = pd.read_csv(directory + "/annotations.csv")
+        if os.path.exists(directory + "/PANCANCER_annotations.csv"):
+            self.current_df = pd.read_csv(directory + "/PANCANCER_annotations.csv")
             self.current_index = self.current_df.shape[0] + 1
             print("Restored current index: ", self.current_index)
         else:
             columns = [
-                'file', 'generic_annotation', 'confidence', 'location', 'comment'
+                'file', 'generic_annotation', 'lesion', 'location', 'comment'
             ]
             self.current_df = pd.DataFrame(columns=columns)
             self.current_index = 0
@@ -253,13 +253,10 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
             self.ui.radioButton_5
         ])
 
-        # confidence_score = self.get_likert_score_from_ui([
-        #     self.ui.radioButton_Confidence_1,
-        #     self.ui.radioButton_Confidence_2,
-        #     self.ui.radioButton_Confidence_3,
-        #     self.ui.radioButton_Confidence_4,
-        #     self.ui.radioButton_Confidence_5
-        # ])
+        lesion_score = self.get_likert_score_from_ui([
+            self.ui.radioButton_Lesion_1,
+            self.ui.radioButton_Lesion_2,
+        ])
 
         # Pleural effusion
         location_score = self.get_likert_score_from_ui([
@@ -274,7 +271,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         new_row = {
             'file': self.nifti_files[self.current_index].split(os.sep)[-1],
             'generic_annotation': generic_likert_score,
-            'confidence': '',
+            'lesion': lesion_score,
             'location': location_score,
             'comment': self.ui.comment.toPlainText()
         }
@@ -285,7 +282,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
             return
 
         df = pd.DataFrame([new_row])
-        df.to_csv(self.directory+"/annotations.csv", mode='a', index=False, header=False)
+        df.to_csv(self.directory+"/PANCANCER_annotations.csv", mode='a', index=False, header=False)
 
         # self.overwrite_mask_clicked()
         if self.current_index < self.n_files - 1:
@@ -316,7 +313,6 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
             self.ui.status_checked.setText("Checked: " + str(self.current_index) + " / " + str(self.n_files - 1))
             self.resetUIElements()
             self.ui.comment.setPlainText("")
-
 
     def toggleSegmentationDisplay(self):
         if not self.segmentation_node:
