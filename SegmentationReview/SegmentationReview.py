@@ -9,6 +9,7 @@ from slicer.util import VTKObservationMixin
 import ctk
 import qt
 import time
+import glob
 
 try:
     import pandas as pd
@@ -219,21 +220,20 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
             print("Restored current index: ", self.current_index)
         else:
             columns = [
-                'file', 'generic_annotation', 'pleural_effusion',
-                'atelectasis', 'extrathoracic', 'chest_wall_mets', 'contrast', 'confidence', 'comment'
+                'file', 'generic_annotation', 'confidence', 'location', 'comment'
             ]
             self.current_df = pd.DataFrame(columns=columns)
             self.current_index = 0
 
         # count the number of files in the directory
-        for file in os.listdir(directory):
-            if ".nii" in file and "_0000" in file:
-                self.n_files += 1
-                if os.path.exists(directory + "/" + file.split("_0000.nii.gz")[0] + ".nii.gz"):
-                    self.nifti_files.append(directory + "/" + file)
-                    self.segmentation_files.append(directory + "/" + file.split("_0000.nii.gz")[0] + ".nii.gz")
-                else:
-                    print("No mask for file: ", file)
+        for file in glob.glob(directory + '/PANCANCER_*.nrrd'):
+            self.n_files += 1
+            seg_file = file.split('PANCANCER')[0] + 'Segmentation.nrrd'
+            if os.path.exists(seg_file):
+                self.nifti_files.append(file)
+                self.segmentation_files.append(seg_file)
+            else:
+                print("No mask for file: ", file)
 
         self.ui.status_checked.setText("Checked: " + str(self.current_index) + " / " + str(self.n_files - 1))
         self.resetUIElements()
