@@ -129,19 +129,14 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         # (in the selected parameter node).
         self.atlasDirectoryButton.directoryChanged.connect(self.onAtlasDirectoryChanged)
         self.ui.save_and_next.connect('clicked(bool)', self.save_and_next_clicked)
-        self.ui.overwrite_mask.connect('clicked(bool)', self.overwrite_mask_clicked)
+        # self.ui.overwrite_mask.connect('clicked(bool)', self.overwrite_mask_clicked)
         self.ui.next_case.connect('clicked(bool)', self.next_case_clicked)
         self.ui.prev_case.connect('clicked(bool)', self.prev_case_clicked)
-        self.ui.delete_scan.connect('clicked(bool)', self.delete_scan_clicked)
+        # self.ui.delete_scan.connect('clicked(bool)', self.delete_scan_clicked)
         self.ui.btnToggleSegmentationDisplay.clicked.connect(self.toggleSegmentationDisplay)
 
         self.dummy_radio_buttons = [
             self.ui.radioButton_Dummy,  # for the generic likert score group
-            self.ui.radioButton_PleuralEffusion_Dummy,  # for the PleuralEffusion group
-            self.ui.radioButton_Atelectasis_Dummy,  # for the ChestWallMetastasis group
-            self.ui.checkBox_ExtraThoracicMPM_Dummy,  # for the generic likert score group
-            self.ui.radioButton_ChestWallMetastasis_Dummy,  # for the ChestWallMetastasis group
-            self.ui.radioButton_Contrast_Dummy,  # for the PleuralEffusion group
             self.ui.radioButton_Confidence_Dummy
         ]
 
@@ -175,29 +170,29 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         ])
         self.layout.addWidget(self.segmentEditorWidget)
 
-    def overwrite_mask_clicked(self):
-        # overwrite self.segmentEditorWidget.segmentationNode()
-        # segmentation_node = slicer.mrmlScene.GetFirstNodeByClass('vtkMRMLSegmentationNode')
-
-        # Get the file path where you want to save the segmentation node
-        file_path = self.directory + "/t.seg.nrrd"
-        # Save the segmentation node to file as nifti
-        i = 1  ## version number seg
-        file_path_nifti = self.directory + "/" + \
-                          self.segmentation_files[self.current_index].split("/")[-1].split(".nii.gz")[0] + "_v" + str(
-            i) + ".nii.gz"
-        # Save the segmentation node to file
-        slicer.util.saveNode(self.segmentation_node, file_path)
-
-        img = sitk.ReadImage(file_path)
-
-        while os.path.exists(file_path_nifti):
-            i += 1
-            file_path_nifti = self.directory + "/" + \
-                              self.segmentation_files[self.current_index].split("/")[-1].split(".nii.gz")[
-                                  0] + "_v" + str(i) + ".nii.gz"
-        print('Saving segmentation to file: ', file_path_nifti)
-        sitk.WriteImage(img, file_path_nifti)
+    # def overwrite_mask_clicked(self):
+    #     # overwrite self.segmentEditorWidget.segmentationNode()
+    #     # segmentation_node = slicer.mrmlScene.GetFirstNodeByClass('vtkMRMLSegmentationNode')
+    #
+    #     # Get the file path where you want to save the segmentation node
+    #     file_path = self.directory + "/t.seg.nrrd"
+    #     # Save the segmentation node to file as nifti
+    #     i = 1  ## version number seg
+    #     file_path_nifti = self.directory + "/" + \
+    #                       self.segmentation_files[self.current_index].split("/")[-1].split(".nii.gz")[0] + "_v" + str(
+    #         i) + ".nii.gz"
+    #     # Save the segmentation node to file
+    #     slicer.util.saveNode(self.segmentation_node, file_path)
+    #
+    #     img = sitk.ReadImage(file_path)
+    #
+    #     while os.path.exists(file_path_nifti):
+    #         i += 1
+    #         file_path_nifti = self.directory + "/" + \
+    #                           self.segmentation_files[self.current_index].split("/")[-1].split(".nii.gz")[
+    #                               0] + "_v" + str(i) + ".nii.gz"
+    #     print('Saving segmentation to file: ', file_path_nifti)
+    #     sitk.WriteImage(img, file_path_nifti)
 
     def onAtlasDirectoryChanged(self, directory):
         if self.volume_node:
@@ -219,8 +214,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
             print("Restored current index: ", self.current_index)
         else:
             columns = [
-                'file', 'generic_annotation', 'pleural_effusion',
-                'atelectasis', 'extrathoracic', 'chest_wall_mets', 'contrast', 'confidence', 'comment'
+                'file', 'generic_annotation', 'confidence', 'comment'
             ]
             self.current_df = pd.DataFrame(columns=columns)
             self.current_index = 0
@@ -265,48 +259,10 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
             self.ui.radioButton_Confidence_5
         ])
 
-        # Pleural effusion
-        pleural_effusion_score = self.get_likert_score_from_ui([
-            self.ui.radioButton_PleuralEffusion_1,
-            self.ui.radioButton_PleuralEffusion_2,
-            self.ui.radioButton_PleuralEffusion_3,
-            self.ui.radioButton_PleuralEffusion_4,
-            self.ui.radioButton_PleuralEffusion_5
-        ])
-
-        atelectasis_score = self.get_likert_score_from_ui([
-            self.ui.checkBox_Atelectasis_No,
-            self.ui.checkBox_Atelectasis_Yes,
-        ])
-
-        extrathoracic_score = self.get_likert_score_from_ui([
-            self.ui.checkBox_ExtraThoracicMPM_No,
-            self.ui.checkBox_ExtraThoracicMPM_Yes,
-        ])
-
-        chest_wall_mets_score = self.get_likert_score_from_ui([
-            self.ui.radioButton_ChestWallMetastasis_No,
-            self.ui.radioButton_ChestWallMetastasis_DrainSite,
-            self.ui.radioButton_ChestWallMetastasis_Yes,
-        ])
-
-        contrast_score = self.get_likert_score_from_ui([
-            self.ui.radioButton_Contrast_No,
-            self.ui.radioButton_Contrast_Arterial,
-            self.ui.radioButton_Contrast_Hepatic,
-        ])
         # Now save them as before, but now with additional columns in your dataframe
         new_row = {
             'file': self.nifti_files[self.current_index].split(os.sep)[-1],
-            'time_start': self.time_start,
-            'time_end': time.time(),
-            'time_elapsed': time.time() - self.time_start,
             'generic_annotation': generic_likert_score,
-            'pleural_effusion': pleural_effusion_score,
-            'atelectasis': atelectasis_score,
-            'extrathoracic': extrathoracic_score,
-            'chest_wall_mets': chest_wall_mets_score,
-            'contrast': contrast_score,
             'confidence': confidence_score,
             'comment': self.ui.comment.toPlainText()
         }
@@ -319,7 +275,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         df = pd.DataFrame([new_row])
         df.to_csv(self.directory+"/annotations.csv", mode='a', index=False, header=False)
 
-        self.overwrite_mask_clicked()
+        # self.overwrite_mask_clicked()
         if self.current_index < self.n_files - 1:
             self.current_index += 1
             self.load_nifti_file()
@@ -407,7 +363,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
 
         # Setting the visualization of the segmentation to outline only
         segmentationDisplayNode = self.segmentation_node.GetDisplayNode()
-        segmentationDisplayNode.SetVisibility2DFill(False)  # Do not show filled region in 2D
+        segmentationDisplayNode.SetVisibility2DFill(True)  # Do not show filled region in 2D
         segmentationDisplayNode.SetVisibility2DOutline(True)  # Show outline in 2D
         segmentationDisplayNode.SetColor(self.segmentation_color)
         segmentationDisplayNode.SetVisibility(True)
