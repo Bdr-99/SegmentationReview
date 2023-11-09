@@ -18,312 +18,313 @@
      </property>
     </widget>
    </item>
-   <item>
-    <widget class="ctkCollapsibleButton" name="inputsCollapsibleButton">
-     <property name="text">
-      <string>Annotation Form</string>
-     </property>
-     <layout class="QFormLayout" name="formLayout_2">
-      <item row="3" column="1">
-       <widget class="QGroupBox" name="buttongroup">
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>150</height>
-         </size>
-        </property>
-        <property name="title">
-         <string>Quality of Segmentation:</string>
-        </property>
-        <widget class="QRadioButton" name="radioButton_1">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>20</y>
-           <width>201</width>
-           <height>21</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>1 - Acceptable,  no changes</string>
-         </property>
-        </widget>
-        <widget class="QRadioButton" name="radioButton_2">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>40</y>
-           <width>221</width>
-           <height>21</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>2 - Acceptable,  minor changes</string>
-         </property>
-        </widget>
-        <widget class="QRadioButton" name="radioButton_3">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>60</y>
-           <width>400</width>
-           <height>21</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>3 - Neutral, Acceptable for research, Unacceptable for clinics</string>
-         </property>
-        </widget>
-        <widget class="QRadioButton" name="radioButton_4">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>80</y>
-           <width>221</width>
-           <height>21</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>4 - Unacceptable,  major changes </string>
-         </property>
-        </widget>
-        <widget class="QRadioButton" name="radioButton_5">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>100</y>
-           <width>358</width>
-           <height>22</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>5 - Unacceptable, better to start from scratch</string>
-         </property>
-        </widget>
-        <widget class="QPlainTextEdit" name="comment">
-         <property name="geometry">
-          <rect>
-           <x>80</x>
-           <y>125</y>
-           <width>271</width>
-           <height>21</height>
-          </rect>
-         </property>
-        </widget>
-        <widget class="QLabel" name="status_checked_2">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>130</y>
-           <width>71</width>
-           <height>16</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Comment:</string>
-         </property>
-        </widget>
-        <widget class="QRadioButton" name="radioButton_Dummy">
-         <property name="geometry">
-          <rect>
-           <x>250</x>
-           <y>20</y>
-           <width>0</width>
-           <height>0</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Choose one</string>
-         </property>
-        </widget>
-       </widget>
-      </item>
-      <item row="5" column="1">
-       <widget class="QGroupBox" name="buttongroup_Lesion">
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>70</height>
-         </size>
-        </property>
-        <property name="title">
-         <string>Are all lesions segmented?</string>
-        </property>
-        <widget class="QRadioButton" name="radioButton_Lesion_1">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>20</y>
-           <width>201</width>
-           <height>21</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>1 - Yes </string>
-         </property>
-        </widget>
-        <widget class="QRadioButton" name="radioButton_Lesion_2">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>40</y>
-           <width>400</width>
-           <height>21</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>2 - No </string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="status_checked_Lesion">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>130</y>
-           <width>71</width>
-           <height>16</height>
-          </rect>
-         </property>
-        </widget>
-        <widget class="QRadioButton" name="radioButton_Lesion_Dummy">
-         <property name="geometry">
-          <rect>
-           <x>250</x>
-           <y>10</y>
-           <width>0</width>
-           <height>0</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Choose one</string>
-         </property>
-        </widget>
-       </widget>
-      </item>
-      <item row="6" column="1">
-       <widget class="QGroupBox" name="buttongroup_Location">
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>130</height>
-         </size>
-        </property>
-        <property name="title">
-         <string>Body Part(s) in CT scan:</string>
-        </property>
-        <widget class="QRadioButton" name="radioButton_Location_1">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>20</y>
-           <width>201</width>
-           <height>21</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>1 - Head and neck</string>
-         </property>
-        </widget>
-        <widget class="QRadioButton" name="radioButton_Location_2">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>40</y>
-           <width>400</width>
-           <height>21</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>2 - Thorax</string>
-         </property>
-        </widget>
-        <widget class="QRadioButton" name="radioButton_Location_3">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>60</y>
-           <width>400</width>
-           <height>21</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>3 - Thoraco-abdominal</string>
-         </property>
-        </widget>
-        <widget class="QRadioButton" name="radioButton_Location_4">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>80</y>
-           <width>400</width>
-           <height>21</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>4 - Abdomen</string>
-         </property>
-        </widget>
-        <widget class="QRadioButton" name="radioButton_Location_5">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>100</y>
-           <width>400</width>
-           <height>21</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>5 - Other </string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="status_checked_Location">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>130</y>
-           <width>71</width>
-           <height>16</height>
-          </rect>
-         </property>
-        </widget>
-        <widget class="QRadioButton" name="radioButton_Location_Dummy">
-         <property name="geometry">
-          <rect>
-           <x>250</x>
-           <y>10</y>
-           <width>0</width>
-           <height>0</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Choose one</string>
-         </property>
-        </widget>
-       </widget>
-      </item>
-      <item row="11" column="1">
-       <widget class="QPushButton" name="save_and_next">
-        <property name="text">
-         <string>Save Form and Next Case</string>
-        </property>
-       </widget>
-      </item>
+<!-- Add a new push button for "Nothing to segment" -->
+ <item>
+  <widget class="QPushButton" name="btnNothingToSegment">
+   <property name="text">
+    <string>Nothing to segment (go to the next case)</string>
+   </property>
+  </widget>
+ </item>
 
-     </layout>
+ <!-- Add a checklist for "Is the liver fully imaged?" -->
+ <item>
+  <widget class="QGroupBox" name="groupBoxLiverImaged">
+   <property name="title">
+    <string>Is the liver fully imaged?</string>
+   </property>
+   <layout class="QHBoxLayout" name="hboxLayoutLiver">
+    <item>
+     <widget class="QRadioButton" name="radioLiverYes">
+      <property name="text">
+       <string>Yes</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QRadioButton" name="radioLiverNo">
+      <property name="text">
+       <string>No</string>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+ </item>
+
+<item>
+  <widget class="QGroupBox" name="groupBoxImageQuality">
+    <property name="title">
+      <string>Indicate, if any, possible reasons of reduced image quality</string>
+    </property>
+    <layout class="QVBoxLayout" name="vboxLayoutQuality">
+      <item>
+        <widget class="QCheckBox" name="checkNoiseRatio">
+          <property name="text">
+            <string>High signal to noise ratio</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QCheckBox" name="checkMetalArtifacts">
+          <property name="text">
+            <string>Metal artifacts</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QCheckBox" name="checkPatientMotion">
+          <property name="text">
+            <string>Patient motion</string>
+          </property>
+        </widget>
+      </item>
+      <!-- Layout for the "Other" checkbox and text input -->
+      <item>
+        <layout class="QHBoxLayout" name="hboxLayoutOther">
+          <item>
+            <widget class="QCheckBox" name="checkOtherReasons">
+              <property name="text">
+                <string>Other</string>
+              </property>
+            </widget>
+          </item>
+          <item>
+            <widget class="QLineEdit" name="lineEditOtherReasons"/>
+          </item>
+        </layout>
+      </item>
+    </layout>
+  </widget>
+</item>
+
+
+<item>
+  <widget class="QGroupBox" name="groupBoxContrast">
+    <property name="title">
+      <string>Is there contrast?</string>
+    </property>
+    <layout class="QHBoxLayout" name="hboxLayoutContrast">
+      <item>
+        <widget class="QRadioButton" name="radioButtonContrastNone">
+          <property name="text">
+            <string>None</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioButtonContrastArterial">
+          <property name="text">
+            <string>Arterial</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioButtonContrastPortal">
+          <property name="text">
+            <string>Portal</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioButtonContrastLatePhase">
+          <property name="text">
+            <string>Late Phase</string>
+          </property>
+        </widget>
+      </item>
+    </layout>
+  </widget>
+</item>
+
+
+<item>
+  <widget class="QGroupBox" name="groupBoxPhaseTiming">
+    <property name="title">
+      <string>What is the timing of the phase?</string>
+    </property>
+    <layout class="QHBoxLayout" name="hboxLayoutPhaseTiming">
+      <item>
+        <widget class="QRadioButton" name="radioButtonPhaseTooEarly">
+          <property name="text">
+            <string>Too early</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioButtonPhaseJustRight">
+          <property name="text">
+            <string>Just right</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioButtonPhaseTooLate">
+          <property name="text">
+            <string>Too late</string>
+          </property>
+        </widget>
+      </item>
+    </layout>
+  </widget>
+</item>
+
+<item>
+  <widget class="QGroupBox" name="groupBoxAISegmentation">
+    <property name="title">
+      <string>How do you judge the quality of the AI segmentation?</string>
+    </property>
+    <layout class="QHBoxLayout" name="hboxLayoutAISegmentation">
+      <item>
+        <widget class="QRadioButton" name="radioButtonAISegmentation1">
+          <property name="text">
+            <string>1 (Bad)</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioButtonAISegmentation2">
+          <property name="text">
+            <string>2</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioButtonAISegmentation3">
+          <property name="text">
+            <string>3</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioButtonAISegmentation4">
+          <property name="text">
+            <string>4</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioButtonAISegmentation5">
+          <property name="text">
+            <string>5 (Good)</string>
+          </property>
+        </widget>
+      </item>
+    </layout>
+  </widget>
+</item>
+
+<item>
+  <widget class="QGroupBox" name="groupBoxManualSegmentation">
+    <property name="title">
+      <string>How confident are you with your manual segmentation?</string>
+    </property>
+    <layout class="QHBoxLayout" name="hboxLayoutManualSegmentation">
+      <item>
+        <widget class="QRadioButton" name="radioButtonManualSegmentation1">
+          <property name="text">
+            <string>1 (Not at all)</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioButtonManualSegmentation2">
+          <property name="text">
+            <string>2</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioButtonManualSegmentation3">
+          <property name="text">
+            <string>3</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioButtonManualSegmentation4">
+          <property name="text">
+            <string>4</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioButtonManualSegmentation5">
+          <property name="text">
+            <string>5 (Very)</string>
+          </property>
+        </widget>
+      </item>
+    </layout>
+  </widget>
+</item>
+
+
+<item>
+  <widget class="QGroupBox" name="groupBoxDifficultySegmentation">
+    <property name="title">
+      <string>How difficult was adjustment segmentation?</string>
+    </property>
+    <layout class="QHBoxLayout" name="hboxLayoutDifficultySegmentation">
+      <item>
+        <widget class="QRadioButton" name="radioButtonDifficultySegmentation1">
+          <property name="text">
+            <string>1 (Easy)</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioButtonDifficultySegmentation2">
+          <property name="text">
+            <string>2</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioButtonDifficultySegmentation3">
+          <property name="text">
+            <string>3</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioButtonDifficultySegmentation4">
+          <property name="text">
+            <string>4</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioButtonDifficultySegmentation5">
+          <property name="text">
+            <string>5 (Hard)</string>
+          </property>
+        </widget>
+      </item>
+    </layout>
+  </widget>
+</item>
+
+   <item row="7" column="1">
+    <widget class="QPushButton" name="prev_case">
+     <property name="text">
+      <string>Save and Next</string>
+     </property>
     </widget>
    </item>
 
    <item row="6" column="1">
     <widget class="QPushButton" name="next_case">
      <property name="text">
-      <string>Next Case (DOESNT SAVE)</string>
+      <string>Next (DOESN'T save)</string>
      </property>
     </widget>
    </item>
+
    <item row="7" column="1">
     <widget class="QPushButton" name="prev_case">
      <property name="text">
-      <string>Prev Case (DOESNT SAVE)</string>
+      <string>Prev (DOESN'T save)</string>
      </property>
     </widget>
    </item>
