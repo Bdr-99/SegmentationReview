@@ -305,6 +305,18 @@
   </widget>
 </item>
 
+<item>
+  <widget class="QTextEdit" name="comment">
+    <property name="toolTip">
+      <string>Enter your comment here</string>
+    </property>
+    <property name="placeholderText">
+      <string>Type your comment...</string>
+    </property>
+  </widget>
+</item>
+
+
    <item row="7" column="1">
     <widget class="QPushButton" name="prev_case">
      <property name="text">

@@ -147,7 +147,8 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
 
         defaultVolumeDisplayNode = slicer.mrmlScene.CreateNodeByClass("vtkMRMLScalarVolumeDisplayNode")
         defaultVolumeDisplayNode.AutoWindowLevelOff()
-        defaultVolumeDisplayNode.SetWindowLevelMinMax(-125, 225)
+        defaultVolumeDisplayNode.SetWindowLevel(200, 100)
+        defaultVolumeDisplayNode.SetWindowLevelLocked(True)
         slicer.mrmlScene.AddDefaultNode(defaultVolumeDisplayNode)
         # self.editorWidget.volumes.collapsed = True
         # Set parameter node first so that the automatic selections made when the scene is set are saved
@@ -201,6 +202,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         if self.segmentation_node:
             slicer.mrmlScene.RemoveNode(self.segmentation_node)
 
+        breakpoint()
         self.directory = directory
 
         # Initialize these variables at the beginning
@@ -208,29 +210,30 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         self.nifti_files = []
         self.segmentation_files = []
 
-        for file in glob.glob(directory + '/*/PANCANCER_*.nrrd'):
-            self.n_files += 1
-            seg_file = os.path.join(*file.split(os.sep)[:-1]).replace(':', ':/') + '/Segmentation.nrrd'
-            if os.path.exists(seg_file):
-                self.nifti_files.append(file)
-                self.segmentation_files.append(seg_file)
-            else:
-                print("No mask for file: ", file)
-
         # load the .csv file with the old annotations or create a new one
-        if os.path.exists(directory + "/PANCANCER_annotations.csv"):
-            self.current_df = pd.read_csv(directory + "/PANCANCER_annotations.csv")
+        if os.path.exists(directory + "/NET_annotations.csv"):
+            self.current_df = pd.read_csv(directory + "/NET_annotations.csv")
             self.current_index = self.current_df.shape[0] + 1
             print("Restored current index: ", self.current_index)
         else:
             columns = [
-                'file', 'generic_annotation', 'lesion', 'location', 'comment'
+                'file', 'is_liver_imaged', 'contrast', 'phase_timing', 
+                'ai_segmentation_quality', 'manual_segmentation_confidence', 
+                'adjustment_segmentation_difficulty', 'high_signal_to_noise', 
+                'metal_artifacts', 'patient_motion', 'other'
             ]
             self.current_df = pd.DataFrame(columns=columns)
             self.current_index = 0
 
-        # count the number of files in the directory
 
+        # collect images and masks
+        for seg_file in glob.glob(directory + '/*.seg.nii.gz'):
+            self.n_files += 1
+            file = seg_file.replace(".seg", "")
+            self.nifti_files.append(file)
+            self.segmentation_files.append(seg_file)
+
+        # count the number of files in the directory
         self.ui.status_checked.setText("Checked: " + str(self.current_index) + " / " + str(self.n_files - 1))
         self.resetUIElements()
 
@@ -245,44 +248,70 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
             print("Please provide all required responses before proceeding.")
             return
 
-        generic_likert_score = self.get_likert_score_from_ui([
-            self.ui.radioButton_1,
-            self.ui.radioButton_2,
-            self.ui.radioButton_3,
-            self.ui.radioButton_4,
-            self.ui.radioButton_5
+        # Collect responses from the UI
+        liver_imaged_score = self.get_likert_score_from_ui([
+            self.ui.radioLiverYes,
+            self.ui.radioLiverNo
         ])
 
-        lesion_score = self.get_likert_score_from_ui([
-            self.ui.radioButton_Lesion_1,
-            self.ui.radioButton_Lesion_2,
+        contrast_score = self.get_likert_score_from_ui([
+            self.ui.radioButtonContrastNone,
+            self.ui.radioButtonContrastArterial,
+            self.ui.radioButtonContrastPortal,
+            self.ui.radioButtonContrastLatePhase
         ])
 
-        # Pleural effusion
-        location_score = self.get_likert_score_from_ui([
-            self.ui.radioButton_Location_1,
-            self.ui.radioButton_Location_2,
-            self.ui.radioButton_Location_3,
-            self.ui.radioButton_Location_4,
-            self.ui.radioButton_Location_5
+        phase_timing_score = self.get_likert_score_from_ui([
+            self.ui.radioButtonPhaseTooEarly,
+            self.ui.radioButtonPhaseJustRight,
+            self.ui.radioButtonPhaseTooLate
         ])
 
-        # Now save them as before, but now with additional columns in your dataframe
+        ai_segmentation_quality_score = self.get_likert_score_from_ui([
+            self.ui.radioButtonAISegmentation1,
+            self.ui.radioButtonAISegmentation2,
+            self.ui.radioButtonAISegmentation3,
+            self.ui.radioButtonAISegmentation4,
+            self.ui.radioButtonAISegmentation5
+        ])
+
+        manual_segmentation_confidence_score = self.get_likert_score_from_ui([
+            self.ui.radioButtonManualSegmentation1,
+            self.ui.radioButtonManualSegmentation2,
+            self.ui.radioButtonManualSegmentation3,
+            self.ui.radioButtonManualSegmentation4,
+            self.ui.radioButtonManualSegmentation5
+        ])
+
+        adjustment_segmentation_difficulty_score = self.get_likert_score_from_ui([
+            self.ui.radioButtonDifficultySegmentation1,
+            self.ui.radioButtonDifficultySegmentation2,
+            self.ui.radioButtonDifficultySegmentation3,
+            self.ui.radioButtonDifficultySegmentation4,
+            self.ui.radioButtonDifficultySegmentation5
+        ])
+
         new_row = {
             'file': self.nifti_files[self.current_index].split(os.sep)[-1],
-            'generic_annotation': generic_likert_score,
-            'lesion': lesion_score,
-            'location': location_score,
-            'comment': self.ui.comment.toPlainText()
+            'is_liver_imaged': liver_imaged_score,
+            'contrast': contrast_score,
+            'phase_timing': phase_timing_score,
+            'ai_segmentation_quality': ai_segmentation_quality_score,
+            'manual_segmentation_confidence': manual_segmentation_confidence_score,
+            'adjustment_segmentation_difficulty': adjustment_segmentation_difficulty_score,
+            'high_signal_to_noise': self.ui.checkNoiseRatio.isChecked(),
+            'metal_artifacts': self.ui.checkMetalArtifacts.isChecked(),
+            'patient_motion': self.ui.checkPatientMotion.isChecked(),
+            'other': self.ui.lineEditOtherReasons.toPlainText()
         }
 
         # Ensure self.current_df is a DataFrame
         if not isinstance(self.current_df, pd.DataFrame):
             print("Error: self.current_df is not a DataFrame!")
-            return
+            return 
 
         df = pd.DataFrame([new_row])
-        df.to_csv(self.directory+"/PANCANCER_annotations.csv", mode='a', index=False, header=False)
+        df.to_csv(self.directory+"/NET_annotations.csv", mode='a', index=False, header=False)
 
         # self.overwrite_mask_clicked()
         if self.current_index < self.n_files - 1:
@@ -294,6 +323,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
             self.ui.comment.setPlainText("")
         else:
             print("All files checked")
+
 
     def next_case_clicked(self):
         if self.current_index < self.n_files - 1:
