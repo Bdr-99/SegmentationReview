@@ -37,8 +37,8 @@ class SegmentationReview(ScriptedLoadableModule):
 
     def __init__(self, parent):
         ScriptedLoadableModule.__init__(self, parent)
-        self.parent.title = "SegmentationReview"
-        self.parent.categories = ["Examples"]
+        self.parent.title = "SegmentationReview - NET"
+        self.parent.categories = ["Segmentation"]
         self.parent.dependencies = []
         self.parent.contributors = ["Anna Zapaishchykova (BWH), Dr. Benjamin H. Kann, AIM-Harvard"]
         self.parent.helpText = """
@@ -83,7 +83,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         self.n_files = 0
         self.current_df = None
         self.time_start = time.time()
-        self.dummy_radio_buttons = []
+        self.groupCheckableGroups = []
 
     def setup(self):
         """
@@ -128,17 +128,22 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
 
         # These connections ensure that whenever user changes some settings on the GUI, that is saved in the MRML scene
         # (in the selected parameter node).
-        self.atlasDirectoryButton.directoryChanged.connect(self.onAtlasDirectoryChanged)
-        self.ui.save_and_next.connect('clicked(bool)', self.save_and_next_clicked)
-        # self.ui.overwrite_mask.connect('clicked(bool)', self.overwrite_mask_clicked)
-        # self.ui.next_case.connect('clicked(bool)', self.next_case_clicked)
-        # self.ui.prev_case.connect('clicked(bool)', self.prev_case_clicked)
-        self.ui.btnToggleSegmentationDisplay.clicked.connect(self.toggleSegmentationDisplay)
+        self.atlasDirectoryButton.directoryChanged.connect(     self.onAtlasDirectoryChanged)
+        self.ui.btnNothingToSegment.connect('clicked(bool)',    self.onNothingToSegmentClicked)
+        self.ui.btnNoLiverToSegment.connect('clicked(bool)',    self.onNoLiverToSegmentClicked)
+        self.ui.btnSaveAndNext.connect('clicked(bool)',         self.onSaveAndNextClicked)
+        self.ui.btnNextCase.connect('clicked(bool)',            self.onNextCaseClicked)
+        self.ui.btnPrevCase.connect('clicked(bool)',            self.onPreviousCaseClicked)
+        self.ui.btnToggleSegmentationDisplay.clicked.connect(   self.toggleSegmentationDisplay)
 
-        self.dummy_radio_buttons = [
-            self.ui.radioButton_Dummy,  # for the generic likert score group
-            self.ui.radioButton_Lesion_Dummy,
-            self.ui.radioButton_Location_Dummy  # for the Location group
+        self.groupCheckableGroups = [
+            self.ui.groupBoxLiverImaged,
+            self.ui.groupBoxImageQuality,
+            self.ui.groupBoxContrast,
+            self.ui.groupBoxPhaseTiming,
+            self.ui.groupBoxAISegmentation,
+            self.ui.groupBoxManualSegmentation,
+            self.ui.groupBoxDifficultySegmentation
         ]
 
         # add a paint brush from segment editor window
@@ -172,59 +177,18 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         ])
         self.layout.addWidget(self.segmentEditorWidget)
 
-    # def overwrite_mask_clicked(self):
-    #     # overwrite self.segmentEditorWidget.segmentationNode()
-    #     # segmentation_node = slicer.mrmlScene.GetFirstNodeByClass('vtkMRMLSegmentationNode')
-    #
-    #     # Get the file path where you want to save the segmentation node
-    #     file_path = self.directory + "/t.seg.nrrd"
-    #     # Save the segmentation node to file as nifti
-    #     i = 1  ## version number seg
-    #     file_path_nifti = self.directory + "/" + \
-    #                       self.segmentation_files[self.current_index].split("/")[-1].split(".nii.gz")[0] + "_v" + str(
-    #         i) + ".nii.gz"
-    #     # Save the segmentation node to file
-    #     slicer.util.saveNode(self.segmentation_node, file_path)
-    #
-    #     img = sitk.ReadImage(file_path)
-    #
-    #     while os.path.exists(file_path_nifti):
-    #         i += 1
-    #         file_path_nifti = self.directory + "/" + \
-    #                           self.segmentation_files[self.current_index].split("/")[-1].split(".nii.gz")[
-    #                               0] + "_v" + str(i) + ".nii.gz"
-    #     print('Saving segmentation to file: ', file_path_nifti)
-    #     sitk.WriteImage(img, file_path_nifti)
-
     def onAtlasDirectoryChanged(self, directory):
         if self.volume_node:
             slicer.mrmlScene.RemoveNode(self.volume_node)
         if self.segmentation_node:
             slicer.mrmlScene.RemoveNode(self.segmentation_node)
 
-        breakpoint()
         self.directory = directory
 
         # Initialize these variables at the beginning
         self.n_files = 0
         self.nifti_files = []
         self.segmentation_files = []
-
-        # load the .csv file with the old annotations or create a new one
-        if os.path.exists(directory + "/NET_annotations.csv"):
-            self.current_df = pd.read_csv(directory + "/NET_annotations.csv")
-            self.current_index = self.current_df.shape[0] + 1
-            print("Restored current index: ", self.current_index)
-        else:
-            columns = [
-                'file', 'is_liver_imaged', 'contrast', 'phase_timing', 
-                'ai_segmentation_quality', 'manual_segmentation_confidence', 
-                'adjustment_segmentation_difficulty', 'high_signal_to_noise', 
-                'metal_artifacts', 'patient_motion', 'other'
-            ]
-            self.current_df = pd.DataFrame(columns=columns)
-            self.current_index = 0
-
 
         # collect images and masks
         for seg_file in glob.glob(directory + '/*.seg.nii.gz'):
@@ -233,15 +197,108 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
             self.nifti_files.append(file)
             self.segmentation_files.append(seg_file)
 
+        # load the .csv file with the old annotations or create a new one
+        if os.path.exists(directory + "/NET_annotations.csv"):
+            self.current_df = pd.read_csv(directory + "/NET_annotations.csv")
+            files_set = set(self.current_df['files'].values)
+            self.nifti_files = [file for file in self.nifti_files if file not in files_set]
+            self.current_index = self.current_df.shape[0] + 1
+            print("Restored current index: ", self.current_index)
+        else:
+            columns = [
+                'file', 'is_liver_imaged', 'contrast', 'phase_timing', 
+                'ai_segmentation_quality', 'manual_segmentation_confidence', 
+                'adjustment_segmentation_difficulty', 'high_signal_to_noise', 
+                'metal_artifacts', 'patient_motion', 'other', 'time-stamp'
+            ]
+            self.current_df = pd.DataFrame(columns=columns)
+            self.current_index = 0
+
         # count the number of files in the directory
-        self.ui.status_checked.setText("Checked: " + str(self.current_index) + " / " + str(self.n_files - 1))
+        self.ui.status_checked.setText("Checked: " + str(self.current_index) + " / " + str(self.n_files))
         self.resetUIElements()
 
         # load first file with mask
         self.load_nifti_file()
         self.time_start = time.time()
 
-    def save_and_next_clicked(self):
+    def onNothingToSegmentClicked(self):
+
+        new_row = {
+            'file': self.nifti_files[self.current_index].split(os.sep)[-1],
+            'is_liver_imaged': None,
+            'contrast': None,
+            'phase_timing': None,
+            'ai_segmentation_quality': None,
+            'manual_segmentation_confidence': None,
+            'adjustment_segmentation_difficulty': None,
+            'high_signal_to_noise': None,
+            'metal_artifacts': None,
+            'patient_motion': None,
+            'other': None,
+            'time-stamp': time.time()
+        }
+
+        # Ensure self.current_df is a DataFrame
+        if not isinstance(self.current_df, pd.DataFrame):
+            print("Error: self.current_df is not a DataFrame!")
+            return 
+
+        df = pd.DataFrame([new_row])
+        df.to_csv(self.directory+"/NET_annotations.csv", mode='a', index=False, header=False)
+
+        # self.overwrite_mask_clicked()
+        if self.current_index < self.n_files - 1:
+            self.current_index += 1
+            self.load_nifti_file()
+            self.time_start = time.time()
+            self.ui.status_checked.setText("Checked: " + str(self.current_index) + " / " + str(self.n_files))
+            self.resetUIElements()
+            self.ui.comment.setPlainText("")
+        else:
+            self.ui.status_checked.setText("All files are checked!!")
+            print("All files checked")
+
+
+    def onNoLiverToSegmentClicked(self):
+
+        new_row = {
+            'file': self.nifti_files[self.current_index].split(os.sep)[-1],
+            'is_liver_imaged': 'Not at all',
+            'contrast': None,
+            'phase_timing': None,
+            'ai_segmentation_quality': None,
+            'manual_segmentation_confidence': None,
+            'adjustment_segmentation_difficulty': None,
+            'high_signal_to_noise': None,
+            'metal_artifacts': None,
+            'patient_motion': None,
+            'other': None,
+            'time-stamp': time.time()
+        }
+
+        # Ensure self.current_df is a DataFrame
+        if not isinstance(self.current_df, pd.DataFrame):
+            print("Error: self.current_df is not a DataFrame!")
+            return 
+
+        df = pd.DataFrame([new_row])
+        df.to_csv(self.directory+"/NET_annotations.csv", mode='a', index=False, header=False)
+
+        # self.overwrite_mask_clicked()
+        if self.current_index < self.n_files - 1:
+            self.current_index += 1
+            self.load_nifti_file()
+            self.time_start = time.time()
+            self.ui.status_checked.setText("Checked: " + str(self.current_index) + " / " + str(self.n_files))
+            self.resetUIElements()
+            self.ui.comment.setPlainText("")
+        else:
+            self.ui.status_checked.setText("All files are checked!!")
+            print("All files checked")
+
+
+    def onSaveAndNextClicked(self):
         # Generic category (assuming it's kept the same for reference)
 
         if not self.all_responses_provided():
@@ -302,7 +359,9 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
             'high_signal_to_noise': self.ui.checkNoiseRatio.isChecked(),
             'metal_artifacts': self.ui.checkMetalArtifacts.isChecked(),
             'patient_motion': self.ui.checkPatientMotion.isChecked(),
-            'other': self.ui.lineEditOtherReasons.toPlainText()
+            'other': self.ui.lineEditOtherReasons.text,
+            'comment': self.ui.comment.toPlainText(),
+            'time-stamp': time.time()
         }
 
         # Ensure self.current_df is a DataFrame
@@ -314,33 +373,32 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         df.to_csv(self.directory+"/NET_annotations.csv", mode='a', index=False, header=False)
 
         # self.overwrite_mask_clicked()
-        if self.current_index < self.n_files - 1:
+        if self.current_index <= self.n_files:
             self.current_index += 1
             self.load_nifti_file()
             self.time_start = time.time()
-            self.ui.status_checked.setText("Checked: " + str(self.current_index) + " / " + str(self.n_files - 1))
+            self.ui.status_checked.setText("Checked: " + str(self.current_index) + " / " + str(self.n_files))
             self.resetUIElements()
             self.ui.comment.setPlainText("")
         else:
+            self.ui.status_checked.setText("All files are checked!!")
             print("All files checked")
 
-
-    def next_case_clicked(self):
-        if self.current_index < self.n_files - 1:
+    def onNextCaseClicked(self):
+        if self.current_index <= self.n_files:
             self.current_index += 1
             self.load_nifti_file()
             self.time_start = time.time()
-            self.ui.status_checked.setText("Checked: " + str(self.current_index) + " / " + str(self.n_files - 1))
+            self.ui.status_checked.setText("Checked: " + str(self.current_index) + " / " + str(self.n_files))
             self.resetUIElements()
             self.ui.comment.setPlainText("")
 
-
-    def prev_case_clicked(self):
+    def onPreviousCaseClicked(self):
         if self.current_index != 0:
             self.current_index -= 1
             self.load_nifti_file()
             self.time_start = time.time()
-            self.ui.status_checked.setText("Checked: " + str(self.current_index) + " / " + str(self.n_files - 1))
+            self.ui.status_checked.setText("Checked: " + str(self.current_index) + " / " + str(self.n_files))
             self.resetUIElements()
             self.ui.comment.setPlainText("")
 
@@ -403,10 +461,17 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
 
     def resetUIElements(self):
         # Check all dummy radio buttons to effectively uncheck the other buttons in the group
-        for dummy_rb in self.dummy_radio_buttons:
-            dummy_rb.setChecked(True)
-
-        # Reset the comment section
+        self.ui.radioLiverHidden.setChecked(True)
+        self.ui.radioButtonContrastHidden.setChecked(True)
+        self.ui.radioButtonPhaseTimingHidden.setChecked(True)
+        self.ui.radioButtonAISegmentationHidden.setChecked(True)
+        self.ui.radioButtonManualSegmentationHidden.setChecked(True)
+        self.ui.radioButtonDifficultySegmentationHidden.setChecked(True)
+        self.ui.checkNoiseRatio.setChecked(False)
+        self.ui.checkMetalArtifacts.setChecked(False)
+        self.ui.checkPatientMotion.setChecked(False)
+        self.ui.checkOtherReasons.setChecked(False)
+        self.ui.lineEditOtherReasons.setText("")
         self.ui.comment.setPlainText("")
         print("All UI elements reset.")
 
@@ -423,7 +488,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         # List of all dummy radio buttons
 
         # Check if any dummy radio button is checked
-        for dummy_rb in self.dummy_radio_buttons:
+        for dummy_rb in self.groupCheckableGroups:
             if dummy_rb.isChecked():
                 return False
 

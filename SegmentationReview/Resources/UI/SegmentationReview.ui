@@ -18,39 +18,61 @@
      </property>
     </widget>
    </item>
+   
 <!-- Add a new push button for "Nothing to segment" -->
  <item>
   <widget class="QPushButton" name="btnNothingToSegment">
    <property name="text">
-    <string>Nothing to segment (go to the next case)</string>
+    <string>No lesions (go to the next case)</string>
    </property>
   </widget>
  </item>
 
- <!-- Add a checklist for "Is the liver fully imaged?" -->
+ <!-- Add a new push button for "Nothing to segment" -->
  <item>
-  <widget class="QGroupBox" name="groupBoxLiverImaged">
-   <property name="title">
-    <string>Is the liver fully imaged?</string>
+  <widget class="QPushButton" name="btnNoLiverToSegment">
+   <property name="text">
+    <string>No liver (go to the next case)</string>
    </property>
-   <layout class="QHBoxLayout" name="hboxLayoutLiver">
-    <item>
-     <widget class="QRadioButton" name="radioLiverYes">
-      <property name="text">
-       <string>Yes</string>
-      </property>
-     </widget>
-    </item>
-    <item>
-     <widget class="QRadioButton" name="radioLiverNo">
-      <property name="text">
-       <string>No</string>
-      </property>
-     </widget>
-    </item>
-   </layout>
   </widget>
  </item>
+
+<!-- Add a checklist for "Is the liver fully imaged?" -->
+<item>
+  <widget class="QGroupBox" name="groupBoxLiverImaged">
+    <property name="title">
+      <string>Is the liver fully imaged?</string>
+    </property>
+    <layout class="QHBoxLayout" name="hboxLayoutLiver">
+      <item>
+        <widget class="QRadioButton" name="radioLiverYes">
+          <property name="text">
+            <string>Yes</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioLiverNo">
+          <property name="text">
+            <string>No</string>
+          </property>
+        </widget>
+      </item>
+      <!-- Hidden radio button for 'None' state -->
+      <item>
+        <widget class="QRadioButton" name="radioLiverHidden">
+          <property name="text">
+            <string>Hidden</string>  <!-- You can leave the text empty if you prefer -->
+          </property>
+          <property name="visible">
+            <bool>false</bool>  <!-- This makes the radio button hidden -->
+          </property>
+        </widget>
+      </item>
+    </layout>
+  </widget>
+</item>
+
 
 <item>
   <widget class="QGroupBox" name="groupBoxImageQuality">
@@ -133,8 +155,19 @@
           </property>
         </widget>
       </item>
-    </layout>
-  </widget>
+    <!-- Hidden radio button for 'None' state -->
+    <item>
+      <widget class="QRadioButton" name="radioButtonContrastHidden">
+        <property name="text">
+          <string>Hidden</string> <!-- Optional text -->
+        </property>
+        <property name="visible">
+          <bool>false</bool> <!-- Makes the radio button hidden -->
+        </property>
+      </widget>
+    </item>
+  </layout>
+</widget>
 </item>
 
 
@@ -165,8 +198,18 @@
           </property>
         </widget>
       </item>
-    </layout>
-  </widget>
+    <item>
+      <widget class="QRadioButton" name="radioButtonPhaseTimingHidden">
+        <property name="text">
+          <string>Hidden</string> <!-- Optional text -->
+        </property>
+        <property name="visible">
+          <bool>false</bool> <!-- Makes the radio button hidden -->
+        </property>
+      </widget>
+    </item>
+  </layout>
+</widget>
 </item>
 
 <item>
@@ -210,8 +253,19 @@
           </property>
         </widget>
       </item>
-    </layout>
-  </widget>
+    <!-- Hidden radio button for 'None' state -->
+    <item>
+      <widget class="QRadioButton" name="radioButtonAISegmentationHidden">
+        <property name="text">
+          <string>Hidden</string> <!-- Optional text -->
+        </property>
+        <property name="visible">
+          <bool>false</bool> <!-- Makes the radio button hidden -->
+        </property>
+      </widget>
+    </item>
+  </layout>
+</widget>
 </item>
 
 <item>
@@ -255,8 +309,19 @@
           </property>
         </widget>
       </item>
-    </layout>
-  </widget>
+    <!-- Hidden radio button for 'None' state -->
+    <item>
+      <widget class="QRadioButton" name="radioButtonManualSegmentationHidden">
+        <property name="text">
+          <string>Hidden</string> <!-- Optional text -->
+        </property>
+        <property name="visible">
+          <bool>false</bool> <!-- Makes the radio button hidden -->
+        </property>
+      </widget>
+    </item>
+  </layout>
+</widget>
 </item>
 
 
@@ -301,8 +366,19 @@
           </property>
         </widget>
       </item>
-    </layout>
-  </widget>
+    <!-- Hidden radio button for 'None' state -->
+    <item>
+      <widget class="QRadioButton" name="radioButtonDifficultySegmentationHidden">
+        <property name="text">
+          <string>Hidden</string> <!-- Optional text -->
+        </property>
+        <property name="visible">
+          <bool>false</bool> <!-- Makes the radio button hidden -->
+        </property>
+      </widget>
+    </item>
+  </layout>
+</widget>
 </item>
 
 <item>
@@ -318,7 +394,7 @@
 
 
    <item row="7" column="1">
-    <widget class="QPushButton" name="prev_case">
+    <widget class="QPushButton" name="btnSaveAndNext">
      <property name="text">
       <string>Save and Next</string>
      </property>
@@ -326,7 +402,7 @@
    </item>
 
    <item row="6" column="1">
-    <widget class="QPushButton" name="next_case">
+    <widget class="QPushButton" name="btnNextCase">
      <property name="text">
       <string>Next (DOESN'T save)</string>
      </property>
@@ -334,7 +410,7 @@
    </item>
 
    <item row="7" column="1">
-    <widget class="QPushButton" name="prev_case">
+    <widget class="QPushButton" name="btnPrevCase">
      <property name="text">
       <string>Prev (DOESN'T save)</string>
      </property>
