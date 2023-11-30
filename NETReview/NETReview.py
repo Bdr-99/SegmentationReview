@@ -67,7 +67,7 @@ def find_patient_info(new_file, destination_folder):
     # Find the patient ID
     patient_id = mapping_anonymized_to_id.get(anonymized_name)
     if not patient_id:
-        return "Patient ID not found for given Anonymized Name"
+        return "Patient ID not found for given Anonymized Name", "-"
 
     return patient_id, exam_date
 
@@ -526,21 +526,26 @@ class NETReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         path_components = normalized_path.split(os.sep)
         # Get filename and batch 
         filename, batch = path_components[-1], path_components[-2]
-        pt, exam = find_patient_info(filename, batch)
-        # Format date string
-        date = pd.to_datetime(exam, format='%Y%m%d')
-        formatted_date = date.strftime('%dth %b %Y')
+        try:
+            pt, exam = find_patient_info(filename, batch)
+            
+            # Format date string
+            date = pd.to_datetime(exam, format='%Y%m%d')
+            formatted_date = date.strftime('%dth %b %Y')
 
-        day = date.day
-        if 4 <= day <= 20 or 24 <= day <= 30:
-            suffix = "th"
-        else:
-            suffix = ["st", "nd", "rd"][day % 10 - 1]
+            day = date.day
+            if 4 <= day <= 20 or 24 <= day <= 30:
+                suffix = "th"
+            else:
+                suffix = ["st", "nd", "rd"][day % 10 - 1]
 
-        formatted_date = formatted_date.replace('th', suffix)
+            formatted_date = formatted_date.replace('th', suffix)
+        except:
+            pt              = "error loading"
+            formatted_date  = "error loading"
 
-        self.ui.patient_id.setText("Patient ID: " + pt)
-        self.ui.exam_date.setText("Exam Date: " + formatted_date)
+        self.ui.patient_id.setText(pt)
+        self.ui.exam_date.setText(formatted_date)
 
         self.ui.status_checked.setText("Checked: " + str(self.current_index) + " / " + str(self.n_files - 1))
 

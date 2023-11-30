@@ -12,29 +12,43 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
 
-   <item>
-    <widget class="QLabel" name="status_checked">
-     <property name="text">
+<item row="0" column="0" colspan="1">
+  <widget class="QLabel" name="status_checked">
+    <property name="text">
       <string>Checked: 0 / N</string>
-     </property>
-    </widget>
-   </item>
+    </property>
+  </widget>
+</item>
 
-  <item>
-    <widget class="QLabel" name="patient_id">
-     <property name="text">
-      <string>Patient ID:</string>
-     </property>
-    </widget>
-   </item>
+<item>
+  <layout class="QHBoxLayout" name="hboxPatientID">
+    <item>
+      <widget class="QLabel" name="PatientIDLabel">
+        <property name="text">
+          <string>Patient ID: </string>
+        </property>
+      </widget>
+    </item>
+    <item>
+      <widget class="QLineEdit" name="patient_id"/>
+    </item>
+  </layout>
+</item>
 
-  <item>
-    <widget class="QLabel" name="exam_date">
-     <property name="text">
-      <string>Exam Date:</string>
-     </property>
-    </widget>
-   </item>
+<item>
+  <layout class="QHBoxLayout" name="hboxExamDate">
+    <item>
+      <widget class="QLabel" name="ExamDateLabel">
+        <property name="text">
+          <string>Exam Date: </string>
+        </property>
+      </widget>
+    </item>
+    <item>
+      <widget class="QLineEdit" name="exam_date"/>
+    </item>
+  </layout>
+</item>
 
 <!-- Add a new push button for "No Contrast" -->
 <item>
