@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16.3...3.19.7 FATAL_ERROR)
 
-project(SegmentationReviewNET)
+project(SegmentationReview)
 
 #-----------------------------------------------------------------------------
 # Extension meta-information
@@ -20,7 +20,7 @@ include(${Slicer_USE_FILE})
 #-----------------------------------------------------------------------------
 # Extension modules
 add_subdirectory(SegmentationReview)
-add_subdirectory(SegNet)
+add_subdirectory(NETReview)
 ## NEXT_MODULE
 
 #-----------------------------------------------------------------------------

@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/SegmentationReview.iml" filepath="$PROJECT_DIR$/.idea/SegmentationReview.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/NETReview.iml" filepath="$PROJECT_DIR$/.idea/NETReview.iml" />
     </modules>
   </component>
 </project>
