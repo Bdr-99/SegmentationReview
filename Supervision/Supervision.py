@@ -256,7 +256,6 @@ class SupervisionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         #self.segmentation_files[self.current_index] = segmentation_file_path
 
     def onAtlasDirectoryChanged(self, directory):
-
         if not os.path.isfile(directory + "/NET_annotations.csv"):
             print("NET_annotations.csv not found in the directory!")
             print("Did you lead the correct directory?")
@@ -451,9 +450,9 @@ class SupervisionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     def processNextCase(self):
         if self.current_index < self.n_files - 1:
             self.current_index += 1
+            self.load_nifti_file()
             self.resetUIElements()
             self.load_first_reviewer_reply()
-            self.load_nifti_file()
             self.time_start = time.time()
         else:
             self.ui.status_checked.setText("All files are checked!!")
@@ -462,17 +461,17 @@ class SupervisionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     def onNextCaseClicked(self):
         if self.current_index < self.n_files - 1:
             self.current_index += 1
+            self.load_nifti_file()
             self.resetUIElements()
             self.load_first_reviewer_reply()
-            self.load_nifti_file()
             self.time_start = time.time()
 
     def onPreviousCaseClicked(self):
         if self.current_index != 0:
             self.current_index -= 1
+            self.load_nifti_file()
             self.resetUIElements()
             self.load_first_reviewer_reply()
-            self.load_nifti_file()
             self.time_start = time.time()
 
     def toggleSegmentationDisplay(self):
@@ -557,7 +556,13 @@ class SupervisionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.ui.patient_id.setText(pt)
         self.ui.exam_date.setText(formatted_date)
 
-        self.ui.status_checked.setText("Checked: " + str(self.current_index) + " / " + str(self.n_files - 1))
+        display_str = "Checked: " + str(self.current_index) + " / " + str(self.n_files - 1)
+        self.ui.status_checked.setText(display_str)
+
+        # check if correction is already present 
+        correction = self.segmentation_files[self.current_index].replace(".seg.nii.gz", ".seg_2.nii.gz")
+        if os.path.exists(correction):
+            self.ui.status_checked.setText(display_str + " [THIS CASE WAS ALREADY CORRECTED! Showing original readout.]")
 
         print(file_path, segmentation_file_path)
 
