@@ -72,7 +72,7 @@ def find_patient_info(new_file, destination_folder):
     return patient_id, exam_date
 
 
-def append_to_csv(new_row_data, directory, filename="NET_annotations_2.csv"):
+def append_to_csv(new_row_data, directory, filename="NET_annotations.csv"):
     # Define the required column order
     required_columns = [
         'file', 'is_liver_imaged', 'contrast', 'phase_timing', 'no_lesions',
@@ -108,19 +108,18 @@ class Supervision(ScriptedLoadableModule):
 
     def __init__(self, parent):
         ScriptedLoadableModule.__init__(self, parent)
-        self.parent.title = "Supervision (for Kalina only)"
+        self.parent.title = "Supervision (For Kalina only)"
         self.parent.categories = ["Examples"]
         self.parent.dependencies = []
         self.parent.contributors = ["Anna Zapaishchykova (BWH), Dr. Benjamin H. Kann, AIM-Harvard"]
         self.parent.helpText = """
-Slicer3D extension for rating using Likert-type score Deep-learning generated segmentations, with segment editor funtionality. 
-Created to speed up the validation process done by a clinician - the dataset loads in one batch with no need to load masks and volumes separately.
-It is important that each nii file has a corresponding mask file with the same name and the suffix _mask.nii
-"""
-
+        Slicer3D extension for rating using Likert-type score Deep-learning generated segmentations, with segment editor funtionality. 
+        Created to speed up the validation process done by a clinician - the dataset loads in one batch with no need to load masks and volumes separately.
+        It is important that each nii file has a corresponding mask file with the same name and the suffix _mask.nii
+        """
         self.parent.acknowledgementText = """
-This file was developed by Anna Zapaishchykova, BWH. 
-"""
+        This file was developed by Anna Zapaishchykova, BWH. 
+        """
 
 
 #
@@ -250,20 +249,34 @@ class SupervisionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         slicer.util.saveNode(self.segmentation_node, segmentation_file_path)
         img = sitk.ReadImage(segmentation_file_path)
         nrrd_to_delete = segmentation_file_path
-        segmentation_file_path = segmentation_file_path.replace('.seg.nrrd', '.seg_2.nii.gz')
+        segmentation_file_path = segmentation_file_path.replace('.seg.nrrd', '.seg.nii.gz')
         sitk.WriteImage(img, segmentation_file_path)
         os.remove(nrrd_to_delete)
-        #self.segmentation_files[self.current_index] = segmentation_file_path
+
+    def load_current_case_existing_annotation(self):
+        # get the current annotation
+        current_annotation = self.current_df.loc[self.current_index]
+
+        # find the row in the dataframe that corresponds to the filename
+        row = df[df['file'] == filename]
+        if not row.empty:
+            # Set the GUI elements based on the values in the row
+            # Example: self.ui.radioLiverYes.setChecked(row['is_liver_imaged'] == 'YES')
+            # Repeat for other GUI elements
+            pass
+
 
     def onAtlasDirectoryChanged(self, directory):
+        breakpoint()
+        if not os.path.exists(directory + "/NET_annotations.csv"):
+            raise FileNotFoundError("Annotation file not found! Did you mean to use this supervision extension?")
 
-        if not os.path.isfile(directory + "/NET_annotations.csv"):
-            print("NET_annotations.csv not found in the directory!")
-            print("Did you lead the correct directory?")
-            print("Did you mean to load the other pug-in for first time case revision?")
-            return
-        
-        self.first_reader_annotations = pd.read_csv(directory + "/NET_annotations.csv")
+        # Load the existing annotations if the file exists
+        self.current_df = pd.read_csv(os.path.join(directory, "NET_annotations.csv"))
+        self.current_index = 0
+
+        # Load data into the GUI for the first file
+        self.load_existing_annotations(self.current_df, self.nifti_files[0])
 
         if self.volume_node:
             slicer.mrmlScene.RemoveNode(self.volume_node)
@@ -279,8 +292,8 @@ class SupervisionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         # Load the existing annotations if the file exists
         annotated_files = set()
-        if os.path.exists(directory + "/NET_annotations_2.csv"):
-            self.current_df = pd.read_csv(directory + "/NET_annotations_2.csv")
+        if os.path.exists(directory + "/NET_annotations.csv"):
+            self.current_df = pd.read_csv(directory + "/NET_annotations.csv")
             annotated_files = set(self.current_df['file'].values)
 
         else:
@@ -312,7 +325,6 @@ class SupervisionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.resetUIElements()
 
         # load first file with mask
-        self.load_first_reviewer_reply()
         self.load_nifti_file()
         self.time_start = time.time()
 
@@ -388,20 +400,20 @@ class SupervisionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         # Collect responses from the UI
         liver_imaged_score = self.get_likert_score_from_ui([
-            self.ui.radioLiverYes,                  # 1
-            self.ui.radioLiverNo                    # 2
+            self.ui.radioLiverYes,
+            self.ui.radioLiverNo
         ])
 
         contrast_score = self.get_likert_score_from_ui([
-            self.ui.radioButtonContrastArterial,    # 1
-            self.ui.radioButtonContrastPortal,      # 2
-            self.ui.radioButtonContrastLatePhase    # 3
+            self.ui.radioButtonContrastArterial,
+            self.ui.radioButtonContrastPortal,
+            self.ui.radioButtonContrastLatePhase
         ])
 
         phase_timing_score = self.get_likert_score_from_ui([
-            self.ui.radioButtonPhaseTooEarly,       # 1
-            self.ui.radioButtonPhaseJustRight,      # 2
-            self.ui.radioButtonPhaseTooLate         # 3
+            self.ui.radioButtonPhaseTooEarly,
+            self.ui.radioButtonPhaseJustRight,
+            self.ui.radioButtonPhaseTooLate
         ])
 
         ai_segmentation_quality_score = self.get_likert_score_from_ui([
@@ -451,10 +463,10 @@ class SupervisionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     def processNextCase(self):
         if self.current_index < self.n_files - 1:
             self.current_index += 1
-            self.resetUIElements()
-            self.load_first_reviewer_reply()
             self.load_nifti_file()
             self.time_start = time.time()
+            self.resetUIElements()
+            self.ui.comment.setPlainText("")
         else:
             self.ui.status_checked.setText("All files are checked!!")
             print("All files checked")
@@ -462,18 +474,18 @@ class SupervisionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     def onNextCaseClicked(self):
         if self.current_index < self.n_files - 1:
             self.current_index += 1
-            self.resetUIElements()
-            self.load_first_reviewer_reply()
             self.load_nifti_file()
             self.time_start = time.time()
+            self.resetUIElements()
+            self.ui.comment.setPlainText("")
 
     def onPreviousCaseClicked(self):
         if self.current_index != 0:
             self.current_index -= 1
-            self.resetUIElements()
-            self.load_first_reviewer_reply()
             self.load_nifti_file()
             self.time_start = time.time()
+            self.resetUIElements()
+            self.ui.comment.setPlainText("")
 
     def toggleSegmentationDisplay(self):
         if not self.segmentation_node:
@@ -576,88 +588,6 @@ class SupervisionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.ui.lineEditOtherReasons.setText("")
         self.ui.comment.setPlainText("")
         print("All UI elements reset.")
-
-    def setUIElements(
-            self, 
-            liver_imaged_score=None, 
-            contrast_score=None, 
-            phase_timing_score=None, 
-            ai_segmentation_quality_score=None, 
-            manual_segmentation_confidence_score=None, 
-            adjustment_segmentation_difficulty_score=None, 
-            high_signal_to_noise=False, 
-            metal_artifacts=False, 
-            patient_motion=False, 
-            other='', 
-            comment=''
-        ):
-        # Helper function to set the radio button group
-        def set_radio_buttons(button_group, score):
-            if score is None or score == 0 or pd.isna(score):
-                getattr(self.ui, button_group + 'Hidden').setChecked(True)
-            else:
-                score = int(score) if isinstance(score, float) else score
-                getattr(self.ui, button_group + str(score)).setChecked(True)
-
-        # Set radio buttons
-        set_radio_buttons('radioLiver', liver_imaged_score)
-        set_radio_buttons('radioButtonContrast', contrast_score)
-        set_radio_buttons('radioButtonPhase', phase_timing_score)
-        set_radio_buttons('radioButtonAISegmentation', ai_segmentation_quality_score)
-        set_radio_buttons('radioButtonManualSegmentation', manual_segmentation_confidence_score)
-        set_radio_buttons('radioButtonDifficultySegmentation', adjustment_segmentation_difficulty_score)
-
-        # Set checkboxes
-        self.ui.checkNoiseRatio.setChecked(high_signal_to_noise)
-        self.ui.checkMetalArtifacts.setChecked(metal_artifacts)
-        self.ui.checkPatientMotion.setChecked(patient_motion)
-
-        # Set text inputs
-        self.ui.lineEditOtherReasons.setText(other)
-        self.ui.comment.setPlainText(comment)
-
-    def load_first_reviewer_reply(self):
-        file_name = os.path.basename(self.nifti_files[self.current_index])
-        #breakpoint()
-
-        # Find the record matching the file_name
-        record = self.first_reader_annotations[self.first_reader_annotations['file'] == file_name]
-
-        if not record.empty:
-            # Extract values from the record
-            liver_imaged_score                              = record['is_liver_imaged'].iloc[0]
-            contrast_score                                  = record['contrast'].iloc[0]
-            phase_timing_score                              = record['phase_timing'].iloc[0]
-            ai_segmentation_quality_score                   = record['ai_segmentation_quality'].iloc[0]
-            manual_segmentation_confidence_score            = record['manual_segmentation_confidence'].iloc[0]
-            adjustment_segmentation_difficulty_score        = record['adjustment_segmentation_difficulty'].iloc[0]
-            high_signal_to_noise                            = record['high_signal_to_noise'].iloc[0]
-            metal_artifacts                                 = record['metal_artifacts'].iloc[0]
-            patient_motion                                  = record['patient_motion'].iloc[0]
-            other                                           = record['other'].iloc[0] if not pd.isna(record['other'].iloc[0]) else ''
-            comment                                         = record['comment'].iloc[0] if not pd.isna(record['comment'].iloc[0]) else ''
-
-            # fix the entries that are stored as number but are not a number
-            liver_imaged_score      = 'Yes' if liver_imaged_score == 1 else 'No' if liver_imaged_score == 2 else None
-            contrast_score          = 'Arterial' if contrast_score == 1 else 'Portal' if contrast_score == 2 else 'LatePhase' if contrast_score == 3 else None
-            phase_timing_score      = 'TooEarly' if phase_timing_score == 1 else 'JustRight' if phase_timing_score == 2 else 'TooLate' if phase_timing_score == 3 else None
-
-            # Call setUIElements with the extracted values
-            self.setUIElements(
-                liver_imaged_score, 
-                contrast_score, 
-                phase_timing_score, 
-                ai_segmentation_quality_score, 
-                manual_segmentation_confidence_score, 
-                adjustment_segmentation_difficulty_score, 
-                high_signal_to_noise, 
-                metal_artifacts, 
-                patient_motion, 
-                other, 
-                comment
-            )
-        else:
-            print(f"No record found for file name: {file_name}")
 
     def set_segmentation_and_mask_for_segmentation_editor(self):
         slicer.app.processEvents()
