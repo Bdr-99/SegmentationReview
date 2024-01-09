@@ -1,0 +1,478 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>NiftyViewer</class>
+ <widget class="qMRMLWidget" name="NiftyViewer">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>381</width>
+    <height>679</height>
+   </rect>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+
+<item row="0" column="0" colspan="1">
+  <widget class="QLabel" name="status_checked">
+    <property name="text">
+      <string>Checked: 0 / N</string>
+    </property>
+  </widget>
+</item>
+
+<item>
+  <layout class="QHBoxLayout" name="hboxPatientID">
+    <item>
+      <widget class="QLabel" name="PatientIDLabel">
+        <property name="text">
+          <string>Patient ID: </string>
+        </property>
+      </widget>
+    </item>
+    <item>
+      <widget class="QLineEdit" name="patient_id"/>
+    </item>
+  </layout>
+</item>
+
+<item>
+  <layout class="QHBoxLayout" name="hboxExamDate">
+    <item>
+      <widget class="QLabel" name="ExamDateLabel">
+        <property name="text">
+          <string>Exam Date: </string>
+        </property>
+      </widget>
+    </item>
+    <item>
+      <widget class="QLineEdit" name="exam_date"/>
+    </item>
+  </layout>
+</item>
+
+<!-- Add a new push button for "No Contrast" -->
+<item>
+  <widget class="QPushButton" name="btnNoContrast">
+   <property name="text">
+    <string>No contrast (save and go to the next case)</string>
+   </property>
+  </widget>
+</item>
+   
+ <!-- Add a new push button for "Nothing to segment" -->
+ <item>
+  <widget class="QPushButton" name="btnNoLiverToSegment">
+   <property name="text">
+    <string>No liver (save and go to the next case)</string>
+   </property>
+  </widget>
+ </item>
+
+<!-- Add a checklist for "Is the liver fully imaged?" -->
+<item>
+  <widget class="QGroupBox" name="groupBoxLiverImaged">
+    <property name="title">
+      <string>Is the liver fully imaged?</string>
+    </property>
+    <layout class="QHBoxLayout" name="hboxLayoutLiver">
+      <item>
+        <widget class="QRadioButton" name="radioLiverYes">
+          <property name="text">
+            <string>Yes</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioLiverNo">
+          <property name="text">
+            <string>No</string>
+          </property>
+        </widget>
+      </item>
+      <!-- Hidden radio button for 'None' state -->
+      <item>
+        <widget class="QRadioButton" name="radioLiverHidden">
+          <property name="text">
+            <string>Hidden</string>  <!-- You can leave the text empty if you prefer -->
+          </property>
+          <property name="visible">
+            <bool>false</bool>  <!-- This makes the radio button hidden -->
+          </property>
+        </widget>
+      </item>
+    </layout>
+  </widget>
+</item>
+
+
+<item>
+  <widget class="QGroupBox" name="groupBoxImageQuality">
+    <property name="title">
+      <string>Indicate, if any, possible reasons of reduced image quality</string>
+    </property>
+    <layout class="QVBoxLayout" name="vboxLayoutQuality">
+      <item>
+        <widget class="QCheckBox" name="checkNoiseRatio">
+          <property name="text">
+            <string>High signal to noise ratio</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QCheckBox" name="checkMetalArtifacts">
+          <property name="text">
+            <string>Metal artifacts</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QCheckBox" name="checkPatientMotion">
+          <property name="text">
+            <string>Patient motion</string>
+          </property>
+        </widget>
+      </item>
+      <!-- Layout for the "Other" checkbox and text input -->
+      <item>
+        <layout class="QHBoxLayout" name="hboxLayoutOther">
+          <item>
+            <widget class="QCheckBox" name="checkOtherReasons">
+              <property name="text">
+                <string>Other</string>
+              </property>
+            </widget>
+          </item>
+          <item>
+            <widget class="QLineEdit" name="lineEditOtherReasons"/>
+          </item>
+        </layout>
+      </item>
+    </layout>
+  </widget>
+</item>
+
+
+<item>
+  <widget class="QGroupBox" name="groupBoxContrast">
+    <property name="title">
+      <string>Is there contrast?</string>
+    </property>
+    <layout class="QHBoxLayout" name="hboxLayoutContrast">
+      <item>
+        <widget class="QRadioButton" name="radioButtonContrastArterial">
+          <property name="text">
+            <string>Arterial</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioButtonContrastPortal">
+          <property name="text">
+            <string>Portal</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioButtonContrastLatePhase">
+          <property name="text">
+            <string>Late Phase</string>
+          </property>
+        </widget>
+      </item>
+    <!-- Hidden radio button for 'None' state -->
+    <item>
+      <widget class="QRadioButton" name="radioButtonContrastHidden">
+        <property name="text">
+          <string>Hidden</string> <!-- Optional text -->
+        </property>
+        <property name="visible">
+          <bool>false</bool> <!-- Makes the radio button hidden -->
+        </property>
+      </widget>
+    </item>
+  </layout>
+</widget>
+</item>
+
+
+<item>
+  <widget class="QGroupBox" name="groupBoxPhaseTiming">
+    <property name="title">
+      <string>What is the timing of the phase?</string>
+    </property>
+    <layout class="QHBoxLayout" name="hboxLayoutPhaseTiming">
+      <item>
+        <widget class="QRadioButton" name="radioButtonPhaseTooEarly">
+          <property name="text">
+            <string>Too early</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioButtonPhaseJustRight">
+          <property name="text">
+            <string>Just right</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioButtonPhaseTooLate">
+          <property name="text">
+            <string>Too late</string>
+          </property>
+        </widget>
+      </item>
+    <item>
+      <widget class="QRadioButton" name="radioButtonPhaseTimingHidden">
+        <property name="text">
+          <string>Hidden</string> <!-- Optional text -->
+        </property>
+        <property name="visible">
+          <bool>false</bool> <!-- Makes the radio button hidden -->
+        </property>
+      </widget>
+    </item>
+  </layout>
+</widget>
+</item>
+
+<!-- Add a new push button for "Nothing to segment" -->
+ <item>
+  <widget class="QPushButton" name="btnNothingToSegment">
+   <property name="text">
+    <string>No liver lesions (save and go to the next case)</string>
+   </property>
+  </widget>
+ </item>
+
+<item>
+  <widget class="QGroupBox" name="groupBoxAISegmentation">
+    <property name="title">
+      <string>How do you judge the quality of the AI segmentation?</string>
+    </property>
+    <layout class="QHBoxLayout" name="hboxLayoutAISegmentation">
+      <item>
+        <widget class="QRadioButton" name="radioButtonAISegmentation1">
+          <property name="text">
+            <string>1 (Bad)</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioButtonAISegmentation2">
+          <property name="text">
+            <string>2</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioButtonAISegmentation3">
+          <property name="text">
+            <string>3</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioButtonAISegmentation4">
+          <property name="text">
+            <string>4</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioButtonAISegmentation5">
+          <property name="text">
+            <string>5 (Good)</string>
+          </property>
+        </widget>
+      </item>
+    <!-- Hidden radio button for 'None' state -->
+    <item>
+      <widget class="QRadioButton" name="radioButtonAISegmentationHidden">
+        <property name="text">
+          <string>Hidden</string> <!-- Optional text -->
+        </property>
+        <property name="visible">
+          <bool>false</bool> <!-- Makes the radio button hidden -->
+        </property>
+      </widget>
+    </item>
+  </layout>
+</widget>
+</item>
+
+<item>
+  <widget class="QGroupBox" name="groupBoxManualSegmentation">
+    <property name="title">
+      <string>How confident are you with your manual segmentation?</string>
+    </property>
+    <layout class="QHBoxLayout" name="hboxLayoutManualSegmentation">
+      <item>
+        <widget class="QRadioButton" name="radioButtonManualSegmentation1">
+          <property name="text">
+            <string>1 (Not at all)</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioButtonManualSegmentation2">
+          <property name="text">
+            <string>2</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioButtonManualSegmentation3">
+          <property name="text">
+            <string>3</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioButtonManualSegmentation4">
+          <property name="text">
+            <string>4</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioButtonManualSegmentation5">
+          <property name="text">
+            <string>5 (Very)</string>
+          </property>
+        </widget>
+      </item>
+    <!-- Hidden radio button for 'None' state -->
+    <item>
+      <widget class="QRadioButton" name="radioButtonManualSegmentationHidden">
+        <property name="text">
+          <string>Hidden</string> <!-- Optional text -->
+        </property>
+        <property name="visible">
+          <bool>false</bool> <!-- Makes the radio button hidden -->
+        </property>
+      </widget>
+    </item>
+  </layout>
+</widget>
+</item>
+
+
+<item>
+  <widget class="QGroupBox" name="groupBoxDifficultySegmentation">
+    <property name="title">
+      <string>How difficult was adjustment segmentation?</string>
+    </property>
+    <layout class="QHBoxLayout" name="hboxLayoutDifficultySegmentation">
+      <item>
+        <widget class="QRadioButton" name="radioButtonDifficultySegmentation1">
+          <property name="text">
+            <string>1 (Easy)</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioButtonDifficultySegmentation2">
+          <property name="text">
+            <string>2</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioButtonDifficultySegmentation3">
+          <property name="text">
+            <string>3</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioButtonDifficultySegmentation4">
+          <property name="text">
+            <string>4</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QRadioButton" name="radioButtonDifficultySegmentation5">
+          <property name="text">
+            <string>5 (Hard)</string>
+          </property>
+        </widget>
+      </item>
+    <!-- Hidden radio button for 'None' state -->
+    <item>
+      <widget class="QRadioButton" name="radioButtonDifficultySegmentationHidden">
+        <property name="text">
+          <string>Hidden</string> <!-- Optional text -->
+        </property>
+        <property name="visible">
+          <bool>false</bool> <!-- Makes the radio button hidden -->
+        </property>
+      </widget>
+    </item>
+  </layout>
+</widget>
+</item>
+
+<item>
+  <widget class="QTextEdit" name="comment">
+    <property name="toolTip">
+      <string>Enter your comment here</string>
+    </property>
+    <property name="placeholderText">
+      <string>Type your comment...</string>
+    </property>
+  </widget>
+</item>
+
+
+   <item row="7" column="1">
+    <widget class="QPushButton" name="btnSaveAndNext">
+     <property name="text">
+      <string>Save and Next</string>
+     </property>
+    </widget>
+   </item>
+
+   <item row="6" column="1">
+    <widget class="QPushButton" name="btnNextCase">
+     <property name="text">
+      <string>Next (DOESN'T save)</string>
+     </property>
+    </widget>
+   </item>
+
+   <item row="7" column="1">
+    <widget class="QPushButton" name="btnPrevCase">
+     <property name="text">
+      <string>Prev (DOESN'T save)</string>
+     </property>
+    </widget>
+   </item>
+
+   <item>
+    <widget class="QPushButton" name="btnToggleSegmentationDisplay">
+     <property name="text">
+      <string>Toggle Segmentation Outline</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>ctkCollapsibleButton</class>
+   <extends>QWidget</extends>
+   <header>ctkCollapsibleButton.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>qMRMLWidget</class>
+   <extends>QWidget</extends>
+   <header>qMRMLWidget.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>
