@@ -223,7 +223,7 @@
         </widget>
       </item>
     <item>
-      <widget class="QRadioButton" name="radioButtonPhaseTimingHidden">
+      <widget class="QRadioButton" name="radioButtonPhaseHidden">
         <property name="text">
           <string>Hidden</string> <!-- Optional text -->
         </property>

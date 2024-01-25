@@ -570,7 +570,7 @@ class SupervisionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         # Check all dummy radio buttons to effectively uncheck the other buttons in the group
         self.ui.radioLiverHidden.setChecked(True)
         self.ui.radioButtonContrastHidden.setChecked(True)
-        self.ui.radioButtonPhaseTimingHidden.setChecked(True)
+        self.ui.radioButtonPhaseHidden.setChecked(True)
         self.ui.radioButtonAISegmentationHidden.setChecked(True)
         self.ui.radioButtonManualSegmentationHidden.setChecked(True)
         self.ui.radioButtonDifficultySegmentationHidden.setChecked(True)
@@ -580,6 +580,9 @@ class SupervisionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.ui.checkOtherReasons.setChecked(False)
         self.ui.lineEditOtherReasons.setText("")
         self.ui.comment.setPlainText("")
+        self.ui.btnNoContrast.setStyleSheet("QPushButton { color: black; }")
+        self.ui.btnNoLiverToSegment.setStyleSheet("QPushButton { color: black; }")
+        self.ui.btnNothingToSegment.setStyleSheet("QPushButton { color: black; }")
         print("All UI elements reset.")
 
     def setUIElements(
@@ -598,6 +601,7 @@ class SupervisionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         ):
         # Helper function to set the radio button group
         def set_radio_buttons(button_group, score):
+            print('setting ', button_group, ' to value ', score)
             if score is None or score == 0 or pd.isna(score):
                 getattr(self.ui, button_group + 'Hidden').setChecked(True)
             else:
@@ -623,22 +627,51 @@ class SupervisionWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
     def load_first_reviewer_reply(self):
         file_name = os.path.basename(self.nifti_files[self.current_index])
-        #breakpoint()
 
         # Find the record matching the file_name
         record = self.first_reader_annotations[self.first_reader_annotations['file'] == file_name]
 
         if not record.empty:
+            print(record.squeeze())
+
+            def to_int_or_nan(value):
+                try:
+                    return int(value)
+                except (ValueError, TypeError):
+                    return float('nan')
+                
+            def string_to_bool(input_value):
+                if isinstance(input_value, bool):
+                    # If the input is already a boolean, return it as is
+                    return input_value
+                elif isinstance(input_value, str):
+                    # If the input is a string, check for "true" or "false" (case-insensitive)
+                    lower_input = input_value.lower()
+                    if lower_input == 'true':
+                        return True
+                    elif lower_input == 'false':
+                        return False
+
+                # If input is neither a boolean nor a recognizable string, return None or raise an exception
+                return None
+            
+            if record['contrast'].iloc[0] == 'NO_CONTRAST':
+                self.ui.btnNoContrast.setStyleSheet("QPushButton { color: red; }")
+            if record['is_liver_imaged'].iloc[0] == 'NO_LIVER':
+                self.ui.btnNoLiverToSegment.setStyleSheet("QPushButton { color: red; }")
+            if string_to_bool(record['no_lesions'].iloc[0]):
+                self.ui.btnNothingToSegment.setStyleSheet("QPushButton { color: red; }")
+
             # Extract values from the record
-            liver_imaged_score                              = record['is_liver_imaged'].iloc[0]
-            contrast_score                                  = record['contrast'].iloc[0]
-            phase_timing_score                              = record['phase_timing'].iloc[0]
-            ai_segmentation_quality_score                   = record['ai_segmentation_quality'].iloc[0]
-            manual_segmentation_confidence_score            = record['manual_segmentation_confidence'].iloc[0]
-            adjustment_segmentation_difficulty_score        = record['adjustment_segmentation_difficulty'].iloc[0]
-            high_signal_to_noise                            = record['high_signal_to_noise'].iloc[0]
-            metal_artifacts                                 = record['metal_artifacts'].iloc[0]
-            patient_motion                                  = record['patient_motion'].iloc[0]
+            liver_imaged_score                              = to_int_or_nan(record['is_liver_imaged'].iloc[0])
+            contrast_score                                  = to_int_or_nan(record['contrast'].iloc[0])
+            phase_timing_score                              = to_int_or_nan(record['phase_timing'].iloc[0])
+            ai_segmentation_quality_score                   = to_int_or_nan(record['ai_segmentation_quality'].iloc[0])
+            manual_segmentation_confidence_score            = to_int_or_nan(record['manual_segmentation_confidence'].iloc[0])
+            adjustment_segmentation_difficulty_score        = to_int_or_nan(record['adjustment_segmentation_difficulty'].iloc[0])
+            high_signal_to_noise                            = string_to_bool(record['high_signal_to_noise'].iloc[0])
+            metal_artifacts                                 = string_to_bool(record['metal_artifacts'].iloc[0])
+            patient_motion                                  = string_to_bool(record['patient_motion'].iloc[0])
             other                                           = record['other'].iloc[0] if not pd.isna(record['other'].iloc[0]) else ''
             comment                                         = record['comment'].iloc[0] if not pd.isna(record['comment'].iloc[0]) else ''
 
