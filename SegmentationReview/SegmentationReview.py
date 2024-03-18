@@ -239,7 +239,8 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         self.resetUIElements()
 
         # load first file with mask
-        self.load_nifti_file()
+        # self.load_nifti_file()
+        self.setup_and_load_scans_side_by_side(self.nifti_files, self.segmentation_files)
         self.time_start = time.time()
 
     def save_and_next_clicked(self):
@@ -415,6 +416,45 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         self.set_segmentation_and_mask_for_segmentation_editor()
 
         print(file_path, segmentation_file_path)
+
+    def setup_and_load_scans_side_by_side(self, volumePaths, segmentationPaths):
+        # Ensure the current index is within bounds
+        if self.current_index >= len(volumePaths) - 1:
+            print("Reached the end or insufficient scans for side-by-side view.")
+            return
+
+        # Set the layout to show two views side by side
+        layoutManager = slicer.app.layoutManager()
+        layoutManager.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutSideBySideView)
+
+        # Load the current scan and segmentation
+        volumeNodeCurrent = slicer.util.loadVolume(volumePaths[self.current_index])
+        segmentationNodeCurrent = slicer.util.loadSegmentation(segmentationPaths[self.current_index])
+
+        # Load the next scan and segmentation
+        volumeNodeNext = slicer.util.loadVolume(volumePaths[self.current_index + 1])
+        segmentationNodeNext = slicer.util.loadSegmentation(segmentationPaths[self.current_index + 1])
+
+        # Assign the current scan to the first pane (Red)
+        redCompositeNode = slicer.util.getNode('vtkMRMLSliceCompositeNodeRed')
+        redCompositeNode.SetBackgroundVolumeID(volumeNodeCurrent.GetID())
+
+        # Assign the next scan to the second pane (Yellow)
+        yellowCompositeNode = slicer.util.getNode('vtkMRMLSliceCompositeNodeYellow')
+        yellowCompositeNode.SetBackgroundVolumeID(volumeNodeNext.GetID())
+
+        yellowSliceNode = slicer.util.getNode('vtkMRMLSliceNodeYellow')
+        yellowSliceNode.SetOrientation("Axial")
+
+        # Optionally, make the segmentations visible in their respective views
+        # This can be done by adjusting the segmentation display settings as needed
+        displayNodeCurrent = segmentationNodeCurrent.GetDisplayNode()
+        displayNodeCurrent.SetVisibility(True)
+
+        displayNodeNext = segmentationNodeNext.GetDisplayNode()
+        displayNodeNext.SetVisibility(True)
+        # Update the layout
+        layoutManager.resetSliceViews()
 
     def resetUIElements(self):
         # Check all dummy radio buttons to effectively uncheck the other buttons in the group
