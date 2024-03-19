@@ -198,6 +198,7 @@ class NETReviewRecheckWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         # (in the selected parameter node).
         self.atlasDirectoryButton.directoryChanged.connect(     self.onAtlasDirectoryChanged)
         self.ui.btnNothingToSegment.connect('clicked(bool)',    self.onNothingToSegmentClicked)
+        self.ui.btnActuallySomethingToSegment.connect('clicked(bool)', self.onActuallySomethingToSegment)
         self.ui.btnNoLiverToSegment.connect('clicked(bool)',    self.onNoLiverToSegmentClicked)
         self.ui.btnNoContrast.connect('clicked(bool)',          self.onNoContrastClicked)
         self.ui.btnSaveAndNext.connect('clicked(bool)',         self.onSaveAndNextClicked)
@@ -330,6 +331,10 @@ class NETReviewRecheckWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         update_annotations_csv(new_row, self.directory)
         self.processNextCase()  
 
+    def onActuallySomethingToSegment(self):
+        self.ui.btnNothingToSegment.setStyleSheet("QPushButton { color: black; }")
+
+
     def onNothingToSegmentClicked(self):
 
         # Collect responses from the UI
@@ -441,7 +446,8 @@ class NETReviewRecheckWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             'patient_motion': self.ui.checkPatientMotion.isChecked(),
             'other': self.ui.lineEditOtherReasons.text,
             'comment': self.ui.comment.toPlainText(),
-            'time-stamp': time.time()
+            'time-stamp': time.time(),
+            'no_lesions': 'FALSE'
         }
 
         update_annotations_csv(new_row, self.directory)

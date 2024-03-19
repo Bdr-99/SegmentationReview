@@ -245,6 +245,14 @@
   </widget>
  </item>
 
+  <item>
+  <widget class="QPushButton" name="btnActuallySomethingToSegment">
+   <property name="text">
+    <string>Oh no! Actually there is a lesion that was missed before</string>
+   </property>
+  </widget>
+ </item>
+
 <item>
   <widget class="QGroupBox" name="groupBoxAISegmentation">
     <property name="title">
