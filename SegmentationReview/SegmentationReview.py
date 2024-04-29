@@ -227,13 +227,9 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
 
         # count the number of files in the directory
         for file in os.listdir(directory):
-            if ".nii" in file and "_0000" in file:
+            if ".nii" in file:
                 self.n_files += 1
-                if os.path.exists(directory + "/" + file.split("_0000.nii.gz")[0] + ".nii.gz"):
-                    self.nifti_files.append(directory + "/" + file)
-                    self.segmentation_files.append(directory + "/" + file.split("_0000.nii.gz")[0] + ".nii.gz")
-                else:
-                    print("No mask for file: ", file)
+
 
         self.ui.status_checked.setText("Checked: " + str(self.current_index) + " / " + str(self.n_files - 1))
         self.resetUIElements()
@@ -353,8 +349,6 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
     def delete_scan_clicked(self):
         ## Delete the current scan from directory
         os.remove(self.nifti_files[self.current_index])
-        ## Delete the current segmentation from the list
-        os.remove(self.nifti_files[self.current_index].replace("_0000.nii.gz", ".nii.gz"))
         self.next_case_clicked()
 
 
@@ -396,25 +390,13 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         file_path = self.nifti_files[self.current_index]
         if self.volume_node:
             slicer.mrmlScene.RemoveNode(self.volume_node)
-        if self.segmentation_node:
-            slicer.mrmlScene.RemoveNode(self.segmentation_node)
 
         self.volume_node = slicer.util.loadVolume(file_path)
         slicer.app.applicationLogic().PropagateVolumeSelection(0)
 
-        segmentation_file_path = self.segmentation_files[self.current_index]
-        self.segmentation_node = slicer.util.loadSegmentation(segmentation_file_path)
-
-        # Setting the visualization of the segmentation to outline only
-        segmentationDisplayNode = self.segmentation_node.GetDisplayNode()
-        segmentationDisplayNode.SetVisibility2DFill(False)  # Do not show filled region in 2D
-        segmentationDisplayNode.SetVisibility2DOutline(True)  # Show outline in 2D
-        segmentationDisplayNode.SetColor(self.segmentation_color)
-        segmentationDisplayNode.SetVisibility(True)
-
         self.set_segmentation_and_mask_for_segmentation_editor()
 
-        print(file_path, segmentation_file_path)
+        print(file_path)
 
     def resetUIElements(self):
         # Check all dummy radio buttons to effectively uncheck the other buttons in the group
