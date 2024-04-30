@@ -229,8 +229,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         for file in os.listdir(directory):
             if ".nii" in file:
                 self.n_files += 1
-
-
+                self.nifti_files.append(directory + "/" + file)
         self.ui.status_checked.setText("Checked: " + str(self.current_index) + " / " + str(self.n_files - 1))
         self.resetUIElements()
 
