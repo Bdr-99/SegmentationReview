@@ -144,7 +144,7 @@ class NETReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.volume_node = None
         self.segmentation_node = None
         self.segmentation_visible = False
-        self.segmentation_color = [1, 0, 0]
+        self.segmentation_color = [1, 1, 0]
         self.nifti_files = []
         self.segmentation_files = []
         self.directory = None
@@ -469,6 +469,11 @@ class NETReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         if not self.segmentation_node:
             print("Segmentation node is not loaded yet!")
             return
+
+        segmentation = self.segmentation_node.GetSegmentation()
+        segment = segmentation.GetSegment(segmentation.GetNthSegmentID(0))
+        segment.SetName("Tumor")
+        segment.SetColor(1, 1, 0)  # Set color to yellow
 
         displayNode = self.segmentation_node.GetDisplayNode()
 
