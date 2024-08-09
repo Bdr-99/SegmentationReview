@@ -23,17 +23,17 @@ except:
     import numpy as np
     import SimpleITK as sitk
 #
-# SegmentationReview
+# ProstaSeg
 #
 
-class SegmentationReview(ScriptedLoadableModule):
+class ProstaSeg(ScriptedLoadableModule):
     """Uses ScriptedLoadableModule base class, available at:
     https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
     """
 
     def __init__(self, parent):
         ScriptedLoadableModule.__init__(self, parent)
-        self.parent.title = "SegmentationReview"  
+        self.parent.title = "ProstaSeg"
         self.parent.categories = ["Examples"]  
         self.parent.dependencies = []  
         self.parent.contributors = ["Anna Zapaishchykova (BWH), Dr. Benjamin H. Kann, AIM-Harvard"]  
@@ -52,7 +52,7 @@ This file was developed by Anna Zapaishchykova, BWH.
 # SegmentationReviewWidget
 #
 
-class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
+class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     """Uses ScriptedLoadableModuleWidget base class, available at:
     https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
     """
@@ -87,7 +87,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
 
         # Load widget from .ui file (created by Qt Designer).
         # Additional widgets can be instantiated manually and added to self.layout.
-        uiWidget = slicer.util.loadUI(self.resourcePath('UI/SegmentationReview.ui'))
+        uiWidget = slicer.util.loadUI(self.resourcePath('UI/ProstaSeg.ui'))
         
         # Layout within the collapsible button
         parametersCollapsibleButton = ctk.ctkCollapsibleButton()
