@@ -3,12 +3,13 @@ import os
 
 
 import vtk
-import pathlib
+from pathlib import Path
 import slicer
 from slicer.ScriptedLoadableModule import *
 from slicer.util import VTKObservationMixin
 import ctk
 import qt
+
 
 try:
     import pandas as pd
@@ -49,7 +50,7 @@ This file was developed by Anna Zapaishchykova, BWH.
 
 
 #
-# SegmentationReviewWidget
+# ProstaSegWidget
 #
 
 class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
@@ -70,7 +71,7 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.segmentation_node = None
         self.segmentation_visible = False
         self.segmentation_color = [1, 0, 0]
-        self.nifti_files = []
+        self.image_files = []
         self.segmentation_files = []
         self.directory=None
         self.current_index=0
@@ -82,171 +83,291 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         """
         Called when the user opens the module the first time and the widget is initialized.
         """
-        import qSlicerSegmentationsModuleWidgetsPythonQt
+        # Setup the module widget
         ScriptedLoadableModuleWidget.setup(self)
 
-        # Load widget from .ui file (created by Qt Designer).
-        # Additional widgets can be instantiated manually and added to self.layout.
-        uiWidget = slicer.util.loadUI(self.resourcePath('UI/ProstaSeg.ui'))
-        
-        # Layout within the collapsible button
-        parametersCollapsibleButton = ctk.ctkCollapsibleButton()
-        parametersCollapsibleButton.text = "Input path"
-        self.layout.addWidget(parametersCollapsibleButton)
+        # Add directory input widget
+        self._createDirectoryWidget()
 
-        self.layout.addWidget(uiWidget)
-        self.ui = slicer.util.childWidgetVariables(uiWidget)
+        # Add custom UI widget
+        self._createCustomUIWidget()
 
-        parametersFormLayout = qt.QFormLayout(parametersCollapsibleButton)
-
-        self.atlasDirectoryButton = ctk.ctkDirectoryButton()
-        parametersFormLayout.addRow("Directory: ", self.atlasDirectoryButton)
-        
-        # Set scene in MRML widgets. Make sure that in Qt designer the top-level qMRMLWidget's
-        # "mrmlSceneChanged(vtkMRMLScene*)" signal in is connected to each MRML widget's.
-        # "setMRMLScene(vtkMRMLScene*)" slot.
-        uiWidget.setMRMLScene(slicer.mrmlScene)
-
-        # Create logic class. Logic implements all computations that should be possible to run
-        # in batch mode, without a graphical user interface.
-        self.logic = SlicerLikertDLratingLogic()
-
-        # Connections
+        # Add segment editor widget
+        self._createSegmentEditorWidget()
 
         # These connections ensure that we update parameter node when scene is closed
         self.addObserver(slicer.mrmlScene, slicer.mrmlScene.StartCloseEvent, self.onSceneStartClose)
         self.addObserver(slicer.mrmlScene, slicer.mrmlScene.EndCloseEvent, self.onSceneEndClose)
         
-        self.ui.PathLineEdit = ctk.ctkDirectoryButton()
+        # self.ui.PathLineEdit = ctk.ctkDirectoryButton()
         
         # These connections ensure that whenever user changes some settings on the GUI, that is saved in the MRML scene
         # (in the selected parameter node).
         self.atlasDirectoryButton.directoryChanged.connect(self.onAtlasDirectoryChanged)
-        self.ui.save_and_next.connect('clicked(bool)', self.save_and_next_clicked)
-        self.ui.overwrite_mask.connect('clicked(bool)', self.overwrite_mask_clicked)
-        
-        # add a paint brush from segment editor window
-        # Create a new segment editor widget and add it to the NiftyViewerWidget
-        self._createSegmentEditorWidget_()
-        
-        #self.editorWidget.volumes.collapsed = True
-         # Set parameter node first so that the automatic selections made when the scene is set are saved
-            
-        
-        # Make sure parameter node is initialized (needed for module reload)
-        #self.initializeParameterNode()
+        self.ui.save_next.connect('clicked(bool)', self.onSaveNextClicked)
+        self.ui.previous.connect('clicked(bool)', self.onPreviousClicked)
 
-    def _createSegmentEditorWidget_(self):
+    def _createDirectoryWidget(self):
+        # Add collapsible input section
+        parametersCollapsibleButton = ctk.ctkCollapsibleButton()
+        parametersCollapsibleButton.text = "Input path"
+        self.layout.addWidget(parametersCollapsibleButton)
+
+        # Add directory button to the input
+        parametersFormLayout = qt.QFormLayout(parametersCollapsibleButton)
+        self.atlasDirectoryButton = ctk.ctkDirectoryButton()
+        parametersFormLayout.addRow("Directory: ", self.atlasDirectoryButton)
+
+    def _createCustomUIWidget(self):
+        # Load widget from .ui file (created by Qt Designer).
+        uiWidget = slicer.util.loadUI(self.resourcePath('UI/ProstaSeg.ui'))
+        self.layout.addWidget(uiWidget)
+        self.ui = slicer.util.childWidgetVariables(uiWidget)
+
+    def _createSegmentEditorWidget(self):
         """Create and initialize a customize Slicer Editor which contains just some the tools that we need for the segmentation"""
 
         import qSlicerSegmentationsModuleWidgetsPythonQt
 
-        #advancedCollapsibleButton
+        # advancedCollapsibleButton
         self.segmentEditorWidget = qSlicerSegmentationsModuleWidgetsPythonQt.qMRMLSegmentEditorWidget(
         )
         self.segmentEditorWidget.setMaximumNumberOfUndoStates(10)
         self.segmentEditorWidget.setMRMLScene(slicer.mrmlScene)
         self.segmentEditorWidget.unorderedEffectsVisible = False
         self.segmentEditorWidget.setEffectNameOrder([
-            'Paint', 'Draw', 'Erase',
+            'Paint', 'Draw', 'Erase', 'Threshold', 'Smoothing',
         ])
         self.layout.addWidget(self.segmentEditorWidget)
-    
-    def overwrite_mask_clicked(self):
-        # overwrite self.segmentEditorWidget.segmentationNode()
-        print("Saved segmentation",self.segmentation_files[self.current_index].split("/")[-1].split(".")[0]+"_upd.nii.gz")
-        #segmentation_node = slicer.mrmlScene.GetFirstNodeByClass('vtkMRMLSegmentationNode')
 
-        # Get the file path where you want to save the segmentation node
-        file_path = self.directory+"/t.seg.nrrd"
-        # Save the segmentation node to file as nifti
-        file_path_nifti = self.directory+"/"+self.segmentation_files[self.current_index].split("/")[-1].split(".")[0]+"_upd.nii.gz"
-        # Save the segmentation node to file
-        slicer.util.saveNode(self.segmentation_node, file_path)
-        
-        img = sitk.ReadImage(file_path)
-        sitk.WriteImage(img, file_path_nifti)
     def onAtlasDirectoryChanged(self, directory):
+        try:
+            if self.volume_node and slicer.mrmlScene.IsNodePresent(self.volume_node):
+                slicer.mrmlScene.RemoveNode(self.volume_node)
+            if self.segmentation_node and slicer.mrmlScene.IsNodePresent(self.segmentation_node):
+                slicer.mrmlScene.RemoveNode(self.segmentation_node)
+        except Exception as e:
+            print(f"Error while removing nodes: {e}")
+
+        # Clear the previously loaded image and segmentation
         if self.volume_node:
             slicer.mrmlScene.RemoveNode(self.volume_node)
         if self.segmentation_node:
             slicer.mrmlScene.RemoveNode(self.segmentation_node)
 
+        # Set the new directory
         self.directory = directory
-        
-        # load the .cvs file with the old annotations or create a new one
-        if os.path.exists(directory+"/annotations.csv"):
-            self.current_index = pd.read_csv(directory+"/annotations.csv").shape[0]+1
-            print("Restored current index: ", self.current_index)
-        else:
-            self.current_df = pd.DataFrame(columns=['file', 'annotation'])
-            self.current_index = 0
-        
-        # count the number of files in the directory
-        for file in os.listdir(directory):
-            if ".nii" in file and "_mask" not in file:
-                self.n_files+=1
-                if os.path.exists(directory+"/"+file.split(".")[0]+"_mask.nii.gz"):
-                    self.nifti_files.append(directory+"/"+file)
-                    self.segmentation_files.append(directory+"/"+file.split(".")[0]+"_mask.nii.gz")
-                else:
-                    print("No mask for file: ", file)
-        self.ui.status_checked.setText("Checked: "+ str(self.current_index) + " / "+str(self.n_files-1))
-         
-        # load first file with mask
-        self.load_nifti_file()
-        
-    def save_and_next_clicked(self):
-        likert_score = 0
-        if self.ui.radioButton_1.isChecked():
-            likert_score=1
-        elif self.ui.radioButton_2.isChecked():
-            likert_score=2
-        elif self.ui.radioButton_3.isChecked():
-            likert_score=3
-        elif self.ui.radioButton_4.isChecked():
-            likert_score=4
-        elif self.ui.radioButton_5.isChecked():
-            likert_score=5
-            
-            
-        self.likert_scores.append([self.current_index, likert_score, self.ui.comment.toPlainText()])
-        # append data frame to CSV file
-        data = {'file': [self.nifti_files[self.current_index].split("/")[-1]], 'annotation': [likert_score],'comment': [self.ui.comment.toPlainText()]}
-        df = pd.DataFrame(data)   
-        df.to_csv(self.directory+"/annotations.csv", mode='a', index=False, header=False)
 
-        # go to the next file if there is one
-        if self.current_index < self.n_files-1:
+        # Initialize these variables at the beginning
+        self.n_files = 0
+        self.current_index = 0
+        self.image_files = []
+        self.segmentation_files = []
+
+        # Load the existing annotations if the file exists
+        annotated_files = set()
+        if os.path.exists(directory + "/ProstaSeg_annotations.csv"):
+            self.current_df = pd.read_csv(directory + "/ProstaSeg_annotations.csv")
+            annotated_files = set(self.current_df['patientID'].values)
+
+        else:
+            columns = ['patientID', 'comment']
+            self.current_df = pd.DataFrame(columns=columns)
+
+        # Collect images and masks, skipping already annotated ones
+        for folder in Path(directory).iterdir():
+            if folder.is_dir():
+                patientID = folder.name
+
+                # Skip the file if it's already annotated
+                if patientID in annotated_files:
+                    continue
+
+                # Initialize
+                image_file = None
+                seg_file = None
+
+                # Iterate over files in the folder
+                for file in folder.iterdir():
+                    if file.is_file():
+                        # Check if the file contains 'image' in its name
+                        if 'image' in file.name:
+                            image_file = file
+
+                        # Optionally check if the file contains 'segmentation' in its name
+                        elif 'segmentation' in file.name:
+                            seg_file = file
+
+                # Update loop iterables
+                self.n_files += 1
+                self.image_files.append(image_file)
+                self.segmentation_files.append(seg_file)
+
+        # Reset the UI to original
+        self.resetUIElements()
+
+        if self.n_files != 0:
+            # Load the first case
+            self.load_files()
+        else:
+            # Say that everything is already checked
+            self.ui.var_check.setText("All files are checked!")
+            self.ui.var_ID.setText('')
+            print("All files checked")
+
+    def resetUIElements(self):
+        self.ui.var_comment.clear()
+        print("All UI elements reset.")
+
+    def onSaveNextClicked(self):
+        # Get the file path where you want to save the segmentation node
+        seg_file_path = self.image_files[self.current_index].parent / 'segmentation.seg.nrrd'
+
+        # Save the segmentation node to file
+        slicer.util.saveNode(self.segmentation_node, str(seg_file_path))
+
+        # Add to csv of annotations
+        new_result = {
+            'patientID': seg_file_path.parent.name,
+            'comment': self.ui.var_comment.toPlainText()
+        }
+        self.append_to_csv(new_result)
+
+        # Go to next case
+        self.goNext()
+
+    def onPreviousClicked(self):
+        # Return to previous case
+        self.goPrevious()
+
+    def goNext(self):
+        try:
+            if self.volume_node and slicer.mrmlScene.IsNodePresent(self.volume_node):
+                slicer.mrmlScene.RemoveNode(self.volume_node)
+            if self.segmentation_node and slicer.mrmlScene.IsNodePresent(self.segmentation_node):
+                slicer.mrmlScene.RemoveNode(self.segmentation_node)
+        except Exception as e:
+            print(f"Error while removing nodes: {e}")
+
+        if self.current_index < self.n_files - 1:
             self.current_index += 1
-            self.load_nifti_file()
-            self.ui.status_checked.setText("Checked: "+ str(self.current_index) + " / "+str(self.n_files-1))
-            self.ui.comment.setPlainText("")
+            self.load_files()
+            self.resetUIElements()
         else:
-            print("All files checked") 
-    
-    def load_nifti_file(self):
-        
-        # Reset the slice views to clear any remaining segmentations
-        slicer.util.resetSliceViews()
-        
-        # ToDo: add 3d tumor view
-        file_path = self.nifti_files[self.current_index]
-        if self.volume_node:
-            slicer.mrmlScene.RemoveNode(self.volume_node)
-        if self.segmentation_node:
-            slicer.mrmlScene.RemoveNode(self.segmentation_node)
+            self.ui.var_check.setText("All files are checked!")
+            self.ui.var_ID.setText('')
+            print("All files checked")
 
+    def goPrevious(self):
+        if self.current_index > 0:
+            try:
+                if self.volume_node and slicer.mrmlScene.IsNodePresent(self.volume_node):
+                    slicer.mrmlScene.RemoveNode(self.volume_node)
+                if self.segmentation_node and slicer.mrmlScene.IsNodePresent(self.segmentation_node):
+                    slicer.mrmlScene.RemoveNode(self.segmentation_node)
+            except Exception as e:
+                print(f"Error while removing nodes: {e}")
+
+            self.current_index -= 1
+            self.load_files()
+            self.resetUIElements()
+
+        else:
+            print('Already at start of sequence!')
+
+    def append_to_csv(self, new_row_data):
+        # Define the required column order
+        required_columns = [
+            'patientID', 'comment'
+        ]
+
+        # Ensure all required columns are present in the new row, filling in None for any that are missing
+        new_row = {column: new_row_data.get(column, None) for column in required_columns}
+
+        # Create DataFrame for the new row
+        df = pd.DataFrame([new_row])
+
+        # Full path to the CSV file
+        file_path = os.path.join(self.directory, 'ProstaSeg_annotations.csv')
+
+        # Check if the file exists to determine whether to write headers
+        file_exists = os.path.exists(file_path)
+
+        # Append to the CSV without header if file exists, else with header
+        df.to_csv(file_path, mode='a', index=False, header=not file_exists)
+    
+    def load_files(self):
+        # Load image
+        file_path = self.image_files[self.current_index]
         self.volume_node = slicer.util.loadVolume(file_path)
         slicer.app.applicationLogic().PropagateVolumeSelection(0)
 
+        # Retrieve segmentation path
         segmentation_file_path = self.segmentation_files[self.current_index]
-        self.segmentation_node = slicer.util.loadSegmentation(segmentation_file_path)
-        self.segmentation_node.GetDisplayNode().SetColor(self.segmentation_color)
-        self.set_segmentation_and_mask_for_segmentation_editor()        
-        
-        print(file_path,segmentation_file_path)
+        print(segmentation_file_path)
 
+        # Initialize variables
+        segment_id_fascia = None
+        segment_id_prostate = None
+
+        if segmentation_file_path is not None:
+            # Load segmentation
+            self.segmentation_node = slicer.util.loadSegmentation(segmentation_file_path)
+
+            # Setting the visualization of the segmentation to outline only
+            segmentationDisplayNode = self.segmentation_node.GetDisplayNode()
+            segmentationDisplayNode.SetVisibility2DFill(False)  # Do not show filled region in 2D
+            segmentationDisplayNode.SetVisibility2DOutline(True)  # Show outline in 2D
+            segmentationDisplayNode.SetVisibility(True)
+
+            seg = self.segmentation_node.GetSegmentation()
+            for seg_id in seg.GetSegmentIDs():
+                segment = seg.GetSegment(seg_id)
+                if segment.GetName() == 'Fascia':
+                    segment_id_fascia = seg_id
+                if segment.GetName() == 'Prostate':
+                    segment_id_prostate = seg_id
+            # Check if 'Fascia' and 'Prostate' segments are already present, if not, create one
+            # Fascia
+            if segment_id_fascia is not None:
+                print(f"The segment with label 'Fascia' already exists.")
+            else:
+                # Create a new segment with the specified label
+                segment_id_fascia = seg.AddEmptySegment('Fascia')
+                segment = seg.GetSegment(segment_id_fascia)
+                if segment:
+                    segment.SetName('Fascia')
+
+        else:
+            # Create a new segmentation node
+            self.segmentation_node = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLSegmentationNode')
+            self.segmentation_node.SetName("Segmentation")
+
+            # Add a display node to the segmentation node
+            segmentation_display_node = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLSegmentationDisplayNode')
+            self.segmentation_node.SetAndObserveDisplayNodeID(segmentation_display_node.GetID())
+
+            # Get the segmentation object from the node
+            segmentation = self.segmentation_node.GetSegmentation()
+
+            # Add segments with the specified labels
+            for label in ["Prostate", "Fascia"]:
+                segment_id = segmentation.AddEmptySegment(label)
+                if label == "Prostate":
+                    segment_id_prostate = segment_id
+
+                segment = segmentation.GetSegment(segment_id)
+                if segment:
+                    segment.SetName(label)
+
+        # Connect segmentation editor to the masks
+        self.set_segmentation_and_mask_for_segmentation_editor()
+        self.ui.var_check.setText(str(self.current_index) + " / " + str(self.n_files))
+        self.ui.var_ID.setText(str(file_path.parent.name))
+
+        # Check if prostate is already there
+        if segment_id_prostate is None:
+            slicer.util.infoDisplay("Please create or rename appropriate segment to 'Prostate'.")
 
     def set_segmentation_and_mask_for_segmentation_editor(self):
         slicer.app.processEvents()
@@ -255,7 +376,34 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         slicer.mrmlScene.AddNode(segmentEditorNode)
         self.segmentEditorWidget.setMRMLSegmentEditorNode(segmentEditorNode)
         self.segmentEditorWidget.setSegmentationNode(self.segmentation_node)
-        self.segmentEditorWidget.setMasterVolumeNode(self.volume_node)
+        self.segmentEditorWidget.setSourceVolumeNode(self.volume_node)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     def cleanup(self):
@@ -357,63 +505,3 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         wasModified = self._parameterNode.StartModify()  # Modify all properties in a single batch
 
         self._parameterNode.EndModify(wasModified)
-
-
-#
-# SlicerLikertDLratingLogic
-#
-
-class SlicerLikertDLratingLogic(ScriptedLoadableModuleLogic):
-    """This class should implement all the actual
-    computation done by your module.  The interface
-    should be such that other python code can import
-    this class and make use of the functionality without
-    requiring an instance of the Widget.
-    Uses ScriptedLoadableModuleLogic base class, available at:
-    https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
-    """
-
-    def __init__(self):
-        """
-        Called when the logic class is instantiated. Can be used for initializing member variables.
-        """
-        ScriptedLoadableModuleLogic.__init__(self)
-
-    
-#
-# SlicerLikertDLratingTest
-#
-
-class SlicerLikertDLratingTest(ScriptedLoadableModuleTest):
-    """
-    This is the test case for your scripted module.
-    Uses ScriptedLoadableModuleTest base class, available at:
-    https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
-    """
-
-    def setUp(self):
-        """ Do whatever is needed to reset the state - typically a scene clear will be enough.
-        """
-        slicer.mrmlScene.Clear()
-
-    def runTest(self):
-        """Run as few or as many tests as needed here.
-        """
-        self.setUp()
-        self.test_SlicerLikertDLrating1()
-
-    def test_SlicerLikertDLrating1(self):
-        """ Ideally you should have several levels of tests.  At the lowest level
-        tests should exercise the functionality of the logic with different inputs
-        (both valid and invalid).  At higher levels your tests should emulate the
-        way the user would interact with your code and confirm that it still works
-        the way you intended.
-        One of the most important features of the tests is that it should alert other
-        developers when their changes will have an impact on the behavior of your
-        module.  For example, if a developer removes a feature that you depend on,
-        your test should break so they know that the feature is needed.
-        """
-
-        self.delayDisplay("Starting the test")
-
-        self.delayDisplay('Test passed')

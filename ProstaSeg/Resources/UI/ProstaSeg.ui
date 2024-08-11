@@ -7,150 +7,179 @@
     <x>0</x>
     <y>0</y>
     <width>381</width>
-    <height>426</height>
+    <height>383</height>
    </rect>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
-    <widget class="QLabel" name="status_checked">
-     <property name="text">
-      <string>Checked: 0 / N</string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="ctkCollapsibleButton" name="inputsCollapsibleButton">
-     <property name="text">
-      <string>Likert Score</string>
-     </property>
-     <layout class="QFormLayout" name="formLayout_2">
-      <item row="3" column="1">
-       <widget class="QGroupBox" name="buttongroup">
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>150</height>
-         </size>
-        </property>
-        <property name="title">
-         <string>Likert Score:</string>
-        </property>
-        <widget class="QRadioButton" name="radioButton_1">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>20</y>
-           <width>201</width>
-           <height>21</height>
-          </rect>
+    <layout class="QVBoxLayout" name="verticalLayout_2">
+     <item>
+      <spacer name="verticalSpacer_4">
+       <property name="orientation">
+        <enum>Qt::Vertical</enum>
+       </property>
+       <property name="sizeType">
+        <enum>QSizePolicy::Minimum</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>20</width>
+         <height>5</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="Checked">
+       <item>
+        <widget class="QLabel" name="checked">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
          </property>
          <property name="text">
-          <string>1 - Acceptable,  no changes</string>
+          <string>Checked:</string>
          </property>
         </widget>
-        <widget class="QRadioButton" name="radioButton_2">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>40</y>
-           <width>221</width>
-           <height>21</height>
-          </rect>
+       </item>
+       <item>
+        <widget class="QLabel" name="var_check">
+         <property name="frameShape">
+          <enum>QFrame::Panel</enum>
+         </property>
+         <property name="frameShadow">
+          <enum>QFrame::Sunken</enum>
          </property>
          <property name="text">
-          <string>2 - Acceptable,  minor changes</string>
+          <string>0 / N</string>
          </property>
         </widget>
-        <widget class="QRadioButton" name="radioButton_3">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>60</y>
-           <width>231</width>
-           <height>21</height>
-          </rect>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="PatientID">
+       <item>
+        <widget class="QLabel" name="patientID">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
          </property>
          <property name="text">
-          <string>3 - Unacceptable,  major changes</string>
+          <string>PatientID:</string>
          </property>
         </widget>
-        <widget class="QRadioButton" name="radioButton_4">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>80</y>
-           <width>221</width>
-           <height>21</height>
-          </rect>
+       </item>
+       <item>
+        <widget class="QLabel" name="var_ID">
+         <property name="frameShape">
+          <enum>QFrame::Panel</enum>
+         </property>
+         <property name="frameShadow">
+          <enum>QFrame::Sunken</enum>
          </property>
          <property name="text">
-          <string>4 - Unacceptable,  not visible </string>
+          <string/>
          </property>
         </widget>
-        <widget class="QRadioButton" name="radioButton_5">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>100</y>
-           <width>358</width>
-           <height>22</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>5 - Bad image</string>
-         </property>
-        </widget>
-        <widget class="QPlainTextEdit" name="comment">
-         <property name="geometry">
-          <rect>
-           <x>80</x>
-           <y>125</y>
-           <width>271</width>
-           <height>21</height>
-          </rect>
-         </property>
-        </widget>
-        <widget class="QLabel" name="status_checked_2">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>130</y>
-           <width>71</width>
-           <height>16</height>
-          </rect>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <spacer name="verticalSpacer">
+       <property name="orientation">
+        <enum>Qt::Vertical</enum>
+       </property>
+       <property name="sizeType">
+        <enum>QSizePolicy::Minimum</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>20</width>
+         <height>5</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="Comment">
+       <item>
+        <widget class="QLabel" name="comment">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
          </property>
          <property name="text">
           <string>Comment:</string>
          </property>
         </widget>
-       </widget>
-      </item>
-      <item row="4" column="1">
-       <widget class="QPushButton" name="save_and_next">
-        <property name="text">
-         <string>Save and Next</string>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </widget>
-   </item>
-   <item>
-    <widget class="QPushButton" name="overwrite_mask">
-     <property name="text">
-      <string>Overwrite Edited Mask </string>
-     </property>
-    </widget>
+       </item>
+       <item>
+        <widget class="QTextEdit" name="var_comment"/>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <spacer name="verticalSpacer_5">
+       <property name="orientation">
+        <enum>Qt::Vertical</enum>
+       </property>
+       <property name="sizeType">
+        <enum>QSizePolicy::Minimum</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>20</width>
+         <height>5</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="Buttons">
+       <item>
+        <widget class="QPushButton" name="previous">
+         <property name="text">
+          <string>Go to Previous</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="save_next">
+         <property name="text">
+          <string>Save and Next</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <spacer name="verticalSpacer_3">
+       <property name="orientation">
+        <enum>Qt::Vertical</enum>
+       </property>
+       <property name="sizeType">
+        <enum>QSizePolicy::Minimum</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>20</width>
+         <height>5</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+    </layout>
    </item>
   </layout>
  </widget>
  <customwidgets>
-  <customwidget>
-   <class>ctkCollapsibleButton</class>
-   <extends>QWidget</extends>
-   <header>ctkCollapsibleButton.h</header>
-   <container>1</container>
-  </customwidget>
   <customwidget>
    <class>qMRMLWidget</class>
    <extends>QWidget</extends>
