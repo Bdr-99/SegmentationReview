@@ -139,6 +139,8 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             'Paint', 'Draw', 'Erase', 'Threshold', 'Smoothing',
         ])
         self.layout.addWidget(self.segmentEditorWidget)
+        undoShortcut = qt.QShortcut(qt.QKeySequence('z'), self.segmentEditorWidget)
+        undoShortcut.activated.connect(self.segmentEditorWidget.undo)
 
     def onAtlasDirectoryChanged(self, directory):
         try:
@@ -190,12 +192,13 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                 # Iterate over files in the folder
                 for file in folder.iterdir():
                     if file.is_file():
+                        print(file)
                         # Check if the file contains 'image' in its name
                         if 'image' in file.name:
                             image_file = file
 
                         # Optionally check if the file contains 'segmentation' in its name
-                        elif 'segmentation' in file.name:
+                        elif 'segmentation' in file.name.lower():
                             seg_file = file
 
                 # Update loop iterables
@@ -323,10 +326,13 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             seg = self.segmentation_node.GetSegmentation()
             for seg_id in seg.GetSegmentIDs():
                 segment = seg.GetSegment(seg_id)
-                if segment.GetName() == 'Fascia':
+                if segment.GetName().lower() == 'fascia':
                     segment_id_fascia = seg_id
-                if segment.GetName() == 'Prostate':
+                elif segment.GetName().lower() == 'prostate':
                     segment_id_prostate = seg_id
+                else:
+                    segmentationDisplayNode.SetSegmentVisibility(seg_id, False)
+                    
             # Check if 'Fascia' and 'Prostate' segments are already present, if not, create one
             # Fascia
             if segment_id_fascia is not None:
@@ -377,7 +383,6 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.segmentEditorWidget.setMRMLSegmentEditorNode(segmentEditorNode)
         self.segmentEditorWidget.setSegmentationNode(self.segmentation_node)
         self.segmentEditorWidget.setSourceVolumeNode(self.volume_node)
-
 
 
 
