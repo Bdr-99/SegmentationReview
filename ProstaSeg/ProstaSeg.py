@@ -9,7 +9,7 @@ from slicer.ScriptedLoadableModule import *
 from slicer.util import VTKObservationMixin
 import ctk
 import qt
-
+import json
 
 try:
     import pandas as pd
@@ -117,6 +117,7 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         parametersFormLayout = qt.QFormLayout(parametersCollapsibleButton)
         self.atlasDirectoryButton = ctk.ctkDirectoryButton()
         parametersFormLayout.addRow("Directory: ", self.atlasDirectoryButton)
+        
 
     def _createCustomUIWidget(self):
         # Load widget from .ui file (created by Qt Designer).
@@ -168,8 +169,9 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         # Load the existing annotations if the file exists
         annotated_files = set()
-        if os.path.exists(directory + "/ProstaSeg_annotations.csv"):
-            self.current_df = pd.read_csv(directory + "/ProstaSeg_annotations.csv")
+      
+        if Path(self.directory + "/ProstaSeg_annotations.csv").exists():
+            self.current_df = pd.read_csv(self.directory + "/ProstaSeg_annotations.csv", dtype=str)
             annotated_files = set(self.current_df['patientID'].values)
 
         else:
@@ -180,7 +182,7 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         for folder in Path(directory).iterdir():
             if folder.is_dir():
                 patientID = folder.name
-
+                
                 # Skip the file if it's already annotated
                 if patientID in annotated_files:
                     continue
@@ -192,7 +194,6 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                 # Iterate over files in the folder
                 for file in folder.iterdir():
                     if file.is_file():
-                        print(file)
                         # Check if the file contains 'image' in its name
                         if 'image' in file.name:
                             image_file = file
@@ -231,9 +232,10 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         # Add to csv of annotations
         new_result = {
-            'patientID': seg_file_path.parent.name,
+            'patientID': str(seg_file_path.parent.name),
             'comment': self.ui.var_comment.toPlainText()
         }
+        print(new_result)
         self.append_to_csv(new_result)
 
         # Go to next case
@@ -285,11 +287,13 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         ]
 
         # Ensure all required columns are present in the new row, filling in None for any that are missing
-        new_row = {column: new_row_data.get(column, None) for column in required_columns}
-
+        new_row = {column: str(new_row_data.get(column, None)) if new_row_data.get(column) is not None else None for column in required_columns}
+        print(new_row)
+        
         # Create DataFrame for the new row
         df = pd.DataFrame([new_row])
-
+        print(df)
+        
         # Full path to the CSV file
         file_path = os.path.join(self.directory, 'ProstaSeg_annotations.csv')
 
@@ -307,7 +311,6 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         # Retrieve segmentation path
         segmentation_file_path = self.segmentation_files[self.current_index]
-        print(segmentation_file_path)
 
         # Initialize variables
         segment_id_fascia = None
@@ -322,12 +325,15 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             segmentationDisplayNode.SetVisibility2DFill(False)  # Do not show filled region in 2D
             segmentationDisplayNode.SetVisibility2DOutline(True)  # Show outline in 2D
             segmentationDisplayNode.SetVisibility(True)
-
+            
+            # Get the segmentation object from the node
             seg = self.segmentation_node.GetSegmentation()
+            
             for seg_id in seg.GetSegmentIDs():
                 segment = seg.GetSegment(seg_id)
                 if segment.GetName().lower() == 'fascia':
                     segment_id_fascia = seg_id
+                    segment.SetColor([1.0, 1.0, 0.0])
                 elif segment.GetName().lower() == 'prostate':
                     segment_id_prostate = seg_id
                 else:
@@ -343,6 +349,7 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                 segment = seg.GetSegment(segment_id_fascia)
                 if segment:
                     segment.SetName('Fascia')
+                    segment.SetColor([1.0, 1.0, 0.0])
 
         else:
             # Create a new segmentation node
@@ -350,19 +357,24 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             self.segmentation_node.SetName("Segmentation")
 
             # Add a display node to the segmentation node
-            segmentation_display_node = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLSegmentationDisplayNode')
-            self.segmentation_node.SetAndObserveDisplayNodeID(segmentation_display_node.GetID())
-
+            segmentationDisplayNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLSegmentationDisplayNode')
+            self.segmentation_node.SetAndObserveDisplayNodeID(segmentationDisplayNode.GetID())
+            
+            # Setting the visualization of the segmentation to outline only
+            segmentationDisplayNode.SetVisibility2DFill(False)  # Do not show filled region in 2D
+            segmentationDisplayNode.SetVisibility2DOutline(True)  # Show outline in 2D
+            segmentationDisplayNode.SetVisibility(True)
+            
             # Get the segmentation object from the node
-            segmentation = self.segmentation_node.GetSegmentation()
+            seg = self.segmentation_node.GetSegmentation()
 
             # Add segments with the specified labels
             for label in ["Prostate", "Fascia"]:
-                segment_id = segmentation.AddEmptySegment(label)
+                segment_id = seg.AddEmptySegment(label)
                 if label == "Prostate":
                     segment_id_prostate = segment_id
 
-                segment = segmentation.GetSegment(segment_id)
+                segment = seg.GetSegment(segment_id)
                 if segment:
                     segment.SetName(label)
 
@@ -378,11 +390,13 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     def set_segmentation_and_mask_for_segmentation_editor(self):
         slicer.app.processEvents()
         self.segmentEditorWidget.setMRMLScene(slicer.mrmlScene)
-        segmentEditorNode = slicer.vtkMRMLSegmentEditorNode()
-        slicer.mrmlScene.AddNode(segmentEditorNode)
-        self.segmentEditorWidget.setMRMLSegmentEditorNode(segmentEditorNode)
+        self.segmentEditorNode = slicer.vtkMRMLSegmentEditorNode()
+        slicer.mrmlScene.AddNode(self.segmentEditorNode)
+        self.segmentEditorWidget.setMRMLSegmentEditorNode(self.segmentEditorNode)
         self.segmentEditorWidget.setSegmentationNode(self.segmentation_node)
         self.segmentEditorWidget.setSourceVolumeNode(self.volume_node)
+        self.segmentEditorNode.SetOverwriteMode(2)
+        self.segmentEditorNode.SetMaskMode(4)
 
 
 
