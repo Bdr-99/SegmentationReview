@@ -240,6 +240,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
 
         # load first file with mask
         self.load_nifti_file()
+
         # self.setup_and_load_scans_side_by_side(self.nifti_files, self.segmentation_files)
         self.time_start = time.time()
 
