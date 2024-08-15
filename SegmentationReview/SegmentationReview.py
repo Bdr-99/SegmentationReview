@@ -239,8 +239,8 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         self.resetUIElements()
 
         # load first file with mask
-        # self.load_nifti_file()
-        self.setup_and_load_scans_side_by_side(self.nifti_files, self.segmentation_files)
+        self.load_nifti_file()
+        # self.setup_and_load_scans_side_by_side(self.nifti_files, self.segmentation_files)
         self.time_start = time.time()
 
     def save_and_next_clicked(self):
