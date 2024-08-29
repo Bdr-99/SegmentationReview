@@ -159,20 +159,31 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             slicer.mrmlScene.RemoveNode(self.segmentation_node)
 
         # Set the new directory
-        self.directory = directory
-
+        self.directory = Path(directory)
+        self.parent_directory = self.directory.parent
+        self.batch_name = self.directory.name
+        
         # Initialize these variables at the beginning
         self.n_files = 0
         self.current_index = 0
         self.image_files = []
         self.segmentation_files = []
 
+        # Check if 'Results\batch_name' folder is already created
+        self.results_directory = Path(self.parent_directory / 'results' / self.batch_name)
+        if not self.results_directory.exists():
+            self.results_directory.mkdir(parents=True, exist_ok=True)
+        
+            
         # Load the existing annotations if the file exists
         annotated_files = set()
-      
-        if Path(self.directory + "/ProstaSeg_annotations.csv").exists():
-            self.current_df = pd.read_csv(self.directory + "/ProstaSeg_annotations.csv", dtype=str)
+        
+        print(Path(self.results_directory / 'ProstaSeg_annotations.csv'))
+        
+        if Path(self.results_directory / 'ProstaSeg_annotations.csv').exists():
+            self.current_df = pd.read_csv(Path(self.results_directory / 'ProstaSeg_annotations.csv'), dtype=str)
             annotated_files = set(self.current_df['patientID'].values)
+            print(annotated_files)
 
         else:
             columns = ['patientID', 'comment']
@@ -225,17 +236,45 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
     def onSaveNextClicked(self):
         # Get the file path where you want to save the segmentation node
-        seg_file_path = self.image_files[self.current_index].parent / 'segmentation.seg.nrrd'
+        seg_file_path = self.results_directory / f'prostaseg_{self.image_files[self.current_index].parent.name}.seg.nrrd'
+        
+        # Set segmentation
+        segmentation = self.segmentation_node.GetSegmentation()
+        
+        # Initialize variables
+        self.segment_id_fascia = None
+        self.segment_id_prostate = None
+        
+        # Check and obtain segment IDs if not already set
+        for seg_id in segmentation.GetSegmentIDs():
+            segment_name = segmentation.GetSegment(seg_id).GetName().lower()
+            if segment_name == 'prostate':
+                self.segment_id_prostate = seg_id
+            elif segment_name == 'fascia':
+                self.segment_id_fascia = seg_id
 
+        # Check if both 'Prostate' and 'Fascia' segments are present
+        if self.segment_id_prostate and self.segment_id_fascia:
+            # Reorder 'Prostate' to index 0 if necessary
+            if segmentation.GetSegmentIndex(self.segment_id_prostate) != 0:
+                segmentation.SetSegmentIndex(self.segment_id_prostate, 0)
+            # Reorder 'Fascia' to index 1 if necessary
+            if segmentation.GetSegmentIndex(self.segment_id_fascia) != 1:
+                segmentation.SetSegmentIndex(self.segment_id_fascia, 1)
+        
+        else:
+            # Display message if segments are not found
+            slicer.util.infoDisplay("Please create or rename appropriate segments to 'Prostate' and 'Fascia'.")
+            return
+                
         # Save the segmentation node to file
         slicer.util.saveNode(self.segmentation_node, str(seg_file_path))
 
         # Add to csv of annotations
         new_result = {
-            'patientID': str(seg_file_path.parent.name),
+            'patientID': str(self.image_files[self.current_index].parent.name),
             'comment': self.ui.var_comment.toPlainText()
         }
-        print(new_result)
         self.append_to_csv(new_result)
 
         # Go to next case
@@ -288,17 +327,15 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         # Ensure all required columns are present in the new row, filling in None for any that are missing
         new_row = {column: str(new_row_data.get(column, None)) if new_row_data.get(column) is not None else None for column in required_columns}
-        print(new_row)
         
         # Create DataFrame for the new row
         df = pd.DataFrame([new_row])
-        print(df)
         
         # Full path to the CSV file
-        file_path = os.path.join(self.directory, 'ProstaSeg_annotations.csv')
+        file_path = Path(self.results_directory / 'ProstaSeg_annotations.csv')
 
         # Check if the file exists to determine whether to write headers
-        file_exists = os.path.exists(file_path)
+        file_exists = file_path.exists()
 
         # Append to the CSV without header if file exists, else with header
         df.to_csv(file_path, mode='a', index=False, header=not file_exists)
@@ -313,8 +350,8 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         segmentation_file_path = self.segmentation_files[self.current_index]
 
         # Initialize variables
-        segment_id_fascia = None
-        segment_id_prostate = None
+        self.segment_id_fascia = None
+        self.segment_id_prostate = None
 
         if segmentation_file_path is not None:
             # Load segmentation
@@ -332,21 +369,21 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             for seg_id in seg.GetSegmentIDs():
                 segment = seg.GetSegment(seg_id)
                 if segment.GetName().lower() == 'fascia':
-                    segment_id_fascia = seg_id
+                    self.segment_id_fascia = seg_id
                     segment.SetColor([1.0, 1.0, 0.0])
                 elif segment.GetName().lower() == 'prostate':
-                    segment_id_prostate = seg_id
+                    self.segment_id_prostate = seg_id
                 else:
                     segmentationDisplayNode.SetSegmentVisibility(seg_id, False)
                     
             # Check if 'Fascia' and 'Prostate' segments are already present, if not, create one
             # Fascia
-            if segment_id_fascia is not None:
+            if self.segment_id_fascia is not None:
                 print(f"The segment with label 'Fascia' already exists.")
             else:
                 # Create a new segment with the specified label
-                segment_id_fascia = seg.AddEmptySegment('Fascia')
-                segment = seg.GetSegment(segment_id_fascia)
+                self.segment_id_fascia = seg.AddEmptySegment('Fascia')
+                segment = seg.GetSegment(self.segment_id_fascia)
                 if segment:
                     segment.SetName('Fascia')
                     segment.SetColor([1.0, 1.0, 0.0])
@@ -372,7 +409,7 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             for label in ["Prostate", "Fascia"]:
                 segment_id = seg.AddEmptySegment(label)
                 if label == "Prostate":
-                    segment_id_prostate = segment_id
+                    self.segment_id_prostate = segment_id
 
                 segment = seg.GetSegment(segment_id)
                 if segment:
@@ -384,7 +421,7 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.ui.var_ID.setText(str(file_path.parent.name))
 
         # Check if prostate is already there
-        if segment_id_prostate is None:
+        if self.segment_id_prostate is None:
             slicer.util.infoDisplay("Please create or rename appropriate segment to 'Prostate'.")
 
     def set_segmentation_and_mask_for_segmentation_editor(self):
@@ -394,6 +431,8 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         slicer.mrmlScene.AddNode(self.segmentEditorNode)
         self.segmentEditorWidget.setMRMLSegmentEditorNode(self.segmentEditorNode)
         self.segmentEditorWidget.setSegmentationNode(self.segmentation_node)
+        self.segmentEditorWidget.setActiveEffectByName("Paint")
+        self.segmentEditorWidget.setCurrentSegmentID(self.segment_id_fascia)
         self.segmentEditorWidget.setSourceVolumeNode(self.volume_node)
         self.segmentEditorNode.SetOverwriteMode(2)
         self.segmentEditorNode.SetMaskMode(4)
