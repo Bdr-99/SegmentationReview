@@ -73,11 +73,24 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.segmentation_color = [1, 0, 0]
         self.image_files = []
         self.segmentation_files = []
+        self.updated_segmentations = []
         self.directory=None
         self.current_index=0
         self.likert_scores = []
         self.n_files = 0
         self.current_df = None
+        
+        # Set up the default directory
+        config_file_path = Path(__file__).parent / 'config.json'
+        
+        # Load the default directory from the config file
+        if config_file_path.exists():
+            with config_file_path.open('r') as config_file:
+                config = json.load(config_file)
+                self.default_directory = config.get("default_directory", "")
+                
+        else:
+            self.default_directory = None
 
     def setup(self):
         """
@@ -97,7 +110,7 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         # These connections ensure that we update parameter node when scene is closed
         self.addObserver(slicer.mrmlScene, slicer.mrmlScene.StartCloseEvent, self.onSceneStartClose)
-        self.addObserver(slicer.mrmlScene, slicer.mrmlScene.EndCloseEvent, self.onSceneEndClose)
+        #self.addObserver(slicer.mrmlScene, slicer.mrmlScene.EndCloseEvent, self.onSceneEndClose)
         
         # self.ui.PathLineEdit = ctk.ctkDirectoryButton()
         
@@ -116,6 +129,9 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         # Add directory button to the input
         parametersFormLayout = qt.QFormLayout(parametersCollapsibleButton)
         self.atlasDirectoryButton = ctk.ctkDirectoryButton()
+        if self.default_directory:
+            self.atlasDirectoryButton.directory = self.default_directory
+            
         parametersFormLayout.addRow("Directory: ", self.atlasDirectoryButton)
         
 
@@ -170,20 +186,16 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.segmentation_files = []
 
         # Check if 'Results\batch_name' folder is already created
-        self.results_directory = Path(self.parent_directory / 'results' / self.batch_name)
+        self.results_directory = Path(self.parent_directory.parent / 'results' / self.batch_name)
         if not self.results_directory.exists():
             self.results_directory.mkdir(parents=True, exist_ok=True)
         
-            
         # Load the existing annotations if the file exists
         annotated_files = set()
-        
-        print(Path(self.results_directory / 'ProstaSeg_annotations.csv'))
         
         if Path(self.results_directory / 'ProstaSeg_annotations.csv').exists():
             self.current_df = pd.read_csv(Path(self.results_directory / 'ProstaSeg_annotations.csv'), dtype=str)
             annotated_files = set(self.current_df['patientID'].values)
-            print(annotated_files)
 
         else:
             columns = ['patientID', 'comment']
@@ -206,7 +218,7 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                 for file in folder.iterdir():
                     if file.is_file():
                         # Check if the file contains 'image' in its name
-                        if 'image' in file.name:
+                        if 'image' in file.name.lower():
                             image_file = file
 
                         # Optionally check if the file contains 'segmentation' in its name
@@ -276,7 +288,11 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             'comment': self.ui.var_comment.toPlainText()
         }
         self.append_to_csv(new_result)
-
+        
+        # Add new segmentation path to updated list
+        if str(seg_file_path) not in self.updated_segmentations:
+            self.updated_segmentations.append(str(seg_file_path))
+        
         # Go to next case
         self.goNext()
 
@@ -313,33 +329,51 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                 print(f"Error while removing nodes: {e}")
 
             self.current_index -= 1
+            self.current_df = pd.read_csv(self.results_directory / 'ProstaSeg_annotations.csv', dtype=str)
             self.load_files()
             self.resetUIElements()
 
         else:
             print('Already at start of sequence!')
-
+    
     def append_to_csv(self, new_row_data):
         # Define the required column order
-        required_columns = [
-            'patientID', 'comment'
-        ]
+        required_columns = ['patientID', 'comment']
 
         # Ensure all required columns are present in the new row, filling in None for any that are missing
         new_row = {column: str(new_row_data.get(column, None)) if new_row_data.get(column) is not None else None for column in required_columns}
-        
-        # Create DataFrame for the new row
-        df = pd.DataFrame([new_row])
-        
+
         # Full path to the CSV file
         file_path = Path(self.results_directory / 'ProstaSeg_annotations.csv')
+        
+        # Check if the patientID already exists
+        if new_row['patientID'] in self.current_df['patientID'].values:
+            # Find the index of the existing row
+            existing_row_index = self.current_df.index[self.current_df['patientID'] == new_row['patientID']].tolist()[0]
 
-        # Check if the file exists to determine whether to write headers
-        file_exists = file_path.exists()
+            # Merge the comments
+            existing_comment = self.current_df.at[existing_row_index, 'comment']
+            new_comment = new_row['comment']
+            
+            if pd.notna(existing_comment) and pd.notna(new_comment):
+                # Concatenate comments with a separator (e.g., "; ")
+                merged_comment = f"{existing_comment} | {new_comment}"
+            elif pd.isna(existing_comment):
+                merged_comment = new_comment
+            else:
+                merged_comment = existing_comment
 
-        # Append to the CSV without header if file exists, else with header
-        df.to_csv(file_path, mode='a', index=False, header=not file_exists)
-    
+            # Update the DataFrame with the merged comment            
+            self.current_df.at[existing_row_index, 'comment'] = merged_comment
+            
+        else:
+            # If patientID does not exist, append the new row using pd.concat
+            new_row_df = pd.DataFrame([new_row])  # Convert the new row to a DataFrame
+            self.current_df = pd.concat([self.current_df, new_row_df], ignore_index=True)
+
+        # Write the updated DataFrame back to the CSV file
+        self.current_df.to_csv(file_path, index=False)
+        
     def load_files(self):
         # Load image
         file_path = self.image_files[self.current_index]
@@ -347,8 +381,14 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         slicer.app.applicationLogic().PropagateVolumeSelection(0)
 
         # Retrieve segmentation path
-        segmentation_file_path = self.segmentation_files[self.current_index]
-
+        print(self.current_index, self.updated_segmentations)
+        if not self.current_index < len(self.updated_segmentations):
+            print('New')
+            segmentation_file_path = self.segmentation_files[self.current_index]
+        else:
+            segmentation_file_path = self.updated_segmentations[self.current_index]
+            print('Old')
+            
         # Initialize variables
         self.segment_id_fascia = None
         self.segment_id_prostate = None
@@ -356,7 +396,12 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         if segmentation_file_path is not None:
             # Load segmentation
             self.segmentation_node = slicer.util.loadSegmentation(segmentation_file_path)
-
+            self.segmentation_node.SetReferenceImageGeometryParameterFromVolumeNode(self.volume_node)
+               
+            # Harden any transformations applied to the segmentation or volume nodes
+            slicer.vtkSlicerTransformLogic().hardenTransform(self.segmentation_node)
+            slicer.vtkSlicerTransformLogic().hardenTransform(self.volume_node)
+            
             # Setting the visualization of the segmentation to outline only
             segmentationDisplayNode = self.segmentation_node.GetDisplayNode()
             segmentationDisplayNode.SetVisibility2DFill(False)  # Do not show filled region in 2D
@@ -436,6 +481,7 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.segmentEditorWidget.setSourceVolumeNode(self.volume_node)
         self.segmentEditorNode.SetOverwriteMode(2)
         self.segmentEditorNode.SetMaskMode(4)
+   
 
 
 
@@ -475,7 +521,7 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         Called each time the user opens this module.
         """
         # Make sure parameter node exists and observed
-        self.initializeParameterNode()
+        #self.initializeParameterNode()
 
     def exit(self):
         """
