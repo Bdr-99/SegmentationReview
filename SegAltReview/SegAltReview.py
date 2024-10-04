@@ -24,17 +24,17 @@ except:
     import numpy as np
     import SimpleITK as sitk
 #
-# ProstaSeg
+# SegAltReview
 #
 
-class ProstaSeg(ScriptedLoadableModule):
+class SegAltReview(ScriptedLoadableModule):
     """Uses ScriptedLoadableModule base class, available at:
     https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
     """
 
     def __init__(self, parent):
         ScriptedLoadableModule.__init__(self, parent)
-        self.parent.title = "ProstaSeg"
+        self.parent.title = "SegAltReview"
         self.parent.categories = ["Examples"]  
         self.parent.dependencies = []  
         self.parent.contributors = ["Anna Zapaishchykova (BWH), Dr. Benjamin H. Kann, AIM-Harvard"]  
@@ -50,10 +50,10 @@ This file was developed by Anna Zapaishchykova, BWH.
 
 
 #
-# ProstaSegWidget
+# SegAltReviewWidget
 #
 
-class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
+class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     """Uses ScriptedLoadableModuleWidget base class, available at:
     https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
     """
@@ -137,7 +137,7 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
     def _createCustomUIWidget(self):
         # Load widget from .ui file (created by Qt Designer).
-        uiWidget = slicer.util.loadUI(self.resourcePath('UI/ProstaSeg.ui'))
+        uiWidget = slicer.util.loadUI(self.resourcePath('UI/SegAltReview.ui'))
         self.layout.addWidget(uiWidget)
         self.ui = slicer.util.childWidgetVariables(uiWidget)
 
@@ -193,8 +193,8 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         # Load the existing annotations if the file exists
         annotated_files = set()
         
-        if Path(self.results_directory / 'ProstaSeg_annotations.csv').exists():
-            self.current_df = pd.read_csv(Path(self.results_directory / 'ProstaSeg_annotations.csv'), dtype=str)
+        if Path(self.results_directory / 'SegAltReview_annotations.csv').exists():
+            self.current_df = pd.read_csv(Path(self.results_directory / 'SegAltReview_annotations.csv'), dtype=str)
             annotated_files = set(self.current_df['patientID'].values)
 
         else:
@@ -248,7 +248,7 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
     def onSaveNextClicked(self):
         # Get the file path where you want to save the segmentation node
-        seg_file_path = self.results_directory / f'prostaseg_{self.image_files[self.current_index].parent.name}.seg.nrrd'
+        seg_file_path = self.results_directory / f'SegAltReview_{self.image_files[self.current_index].parent.name}.seg.nrrd'
         
         # Set segmentation
         segmentation = self.segmentation_node.GetSegmentation()
@@ -329,7 +329,7 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                 print(f"Error while removing nodes: {e}")
 
             self.current_index -= 1
-            self.current_df = pd.read_csv(self.results_directory / 'ProstaSeg_annotations.csv', dtype=str)
+            self.current_df = pd.read_csv(self.results_directory / 'SegAltReview_annotations.csv', dtype=str)
             self.load_files()
             self.resetUIElements()
 
@@ -344,7 +344,7 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         new_row = {column: str(new_row_data.get(column, None)) if new_row_data.get(column) is not None else None for column in required_columns}
 
         # Full path to the CSV file
-        file_path = Path(self.results_directory / 'ProstaSeg_annotations.csv')
+        file_path = Path(self.results_directory / 'SegAltReview_annotations.csv')
         
         # Check if the patientID already exists
         if new_row['patientID'] in self.current_df['patientID'].values:
