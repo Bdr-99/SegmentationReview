@@ -39,13 +39,11 @@ class SegAltReview(ScriptedLoadableModule):
         self.parent.dependencies = []  
         self.parent.contributors = ["Anna Zapaishchykova (BWH), Dr. Benjamin H. Kann, AIM-Harvard"]  
         self.parent.helpText = """
-Slicer3D extension for rating using Likert-type score Deep-learning generated segmentations, with segment editor funtionality. 
-Created to speed up the validation process done by a clinician - the dataset loads in one batch with no need to load masks and volumes separately.
-It is important that each nii file has a corresponding mask file with the same name and the suffix _mask.nii
+Modified version of SegmentationReview by Anna Zapaishchykova (AIM Lab, BWH), Dr. Benjamin H. Kann (AIM Lab, BWH) to create batches of images to be segmented.
 """
        
         self.parent.acknowledgementText = """
-This file was developed by Anna Zapaishchykova, BWH. 
+This file was developed by Anna Zapaishchykova, BWH, and adapted later. 
 """
 
 
@@ -71,11 +69,9 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.segmentation_node = None
         self.segmentation_visible = False
         self.segmentation_color = [1, 0, 0]
-        self.image_files = []
-        self.segmentation_files = []
         self.updated_segmentations = []
-        self.directory=None
-        self.current_index=0
+        self.directory = None
+        self.current_index = 0
         self.likert_scores = []
         self.n_files = 0
         self.current_df = None
@@ -83,14 +79,16 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         # Set up the default directory
         config_file_path = Path(__file__).parent / 'config.json'
         
-        # Load the default directory from the config file
+        # Load the defaults from the config file
         if config_file_path.exists():
             with config_file_path.open('r') as config_file:
                 config = json.load(config_file)
-                self.default_directory = config.get("default_directory", "")
+                self.default_directory = Path(config.get("default_directory", ""))
+                self.results_directory = Path(config.get("results_directory", ""))
                 
         else:
             self.default_directory = None
+            self.results_directory = None
 
     def setup(self):
         """
@@ -98,6 +96,9 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         """
         # Setup the module widget
         ScriptedLoadableModuleWidget.setup(self)
+
+        # Add a dropdown menu (combobox) below the directory widget
+        self._createDropdownMenu()
 
         # Add directory input widget
         self._createDirectoryWidget()
@@ -110,30 +111,43 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         # These connections ensure that we update parameter node when scene is closed
         self.addObserver(slicer.mrmlScene, slicer.mrmlScene.StartCloseEvent, self.onSceneStartClose)
-        #self.addObserver(slicer.mrmlScene, slicer.mrmlScene.EndCloseEvent, self.onSceneEndClose)
-        
-        # self.ui.PathLineEdit = ctk.ctkDirectoryButton()
-        
-        # These connections ensure that whenever user changes some settings on the GUI, that is saved in the MRML scene
-        # (in the selected parameter node).
+        self.addObserver(slicer.mrmlScene, slicer.mrmlScene.EndCloseEvent, self.onSceneEndClose)
+
+        # Connect GUI elements to respective functions
         self.atlasDirectoryButton.directoryChanged.connect(self.onAtlasDirectoryChanged)
+        self.optionComboBox.currentIndexChanged.connect(self.onDropdownSelectionChanged)
         self.ui.save_next.connect('clicked(bool)', self.onSaveNextClicked)
         self.ui.previous.connect('clicked(bool)', self.onPreviousClicked)
 
     def _createDirectoryWidget(self):
-        # Add collapsible input section
-        parametersCollapsibleButton = ctk.ctkCollapsibleButton()
-        parametersCollapsibleButton.text = "Input path"
-        self.layout.addWidget(parametersCollapsibleButton)
-
-        # Add directory button to the input
-        parametersFormLayout = qt.QFormLayout(parametersCollapsibleButton)
         self.atlasDirectoryButton = ctk.ctkDirectoryButton()
         if self.default_directory:
             self.atlasDirectoryButton.directory = self.default_directory
             
-        parametersFormLayout.addRow("Directory: ", self.atlasDirectoryButton)
-        
+        self.parametersFormLayout.addRow("Directory: ", self.atlasDirectoryButton)
+
+    def _createDropdownMenu(self):
+        """
+        Creates a dropdown (combo box) for selecting an option.
+        """
+        # Add collapsible input section
+        parametersCollapsibleButton = ctk.ctkCollapsibleButton()
+        parametersCollapsibleButton.text = "Parameters"
+        self.layout.addWidget(parametersCollapsibleButton)
+
+        # Add directory button to the input
+        self.parametersFormLayout = qt.QFormLayout(parametersCollapsibleButton)
+
+        # Create a label and dropdown (QComboBox)
+        self.optionLabel = qt.QLabel("Radiologist:")
+        self.optionComboBox = qt.QComboBox()
+
+        # Add options to the dropdown menu
+        self.optionComboBox.addItem("Please select your name")
+        self.optionComboBox.addItem("Kalina")
+
+        # Add the label and the dropdown to the layout underneath the directory widget
+        self.parametersFormLayout.addRow(self.optionLabel, self.optionComboBox)
 
     def _createCustomUIWidget(self):
         # Load widget from .ui file (created by Qt Designer).
@@ -177,58 +191,45 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         # Set the new directory
         self.directory = Path(directory)
         self.parent_directory = self.directory.parent
-        self.batch_name = self.directory.name
-        
-        # Initialize these variables at the beginning
-        self.n_files = 0
-        self.current_index = 0
-        self.image_files = []
-        self.segmentation_files = []
 
-        # Check if 'Results\batch_name' folder is already created
-        self.results_directory = Path(self.parent_directory.parent / 'results' / self.batch_name)
-        if not self.results_directory.exists():
-            self.results_directory.mkdir(parents=True, exist_ok=True)
-        
-        # Load the existing annotations if the file exists
-        annotated_files = set()
-        
-        if Path(self.results_directory / 'SegAltReview_annotations.csv').exists():
-            self.current_df = pd.read_csv(Path(self.results_directory / 'SegAltReview_annotations.csv'), dtype=str)
+        # Check if appropriate name has been chosen
+        if not hasattr(self, 'batch_name') or self.batch_name == "Please select your name" :
+            slicer.util.infoDisplay("Please select your name before starting.")
+            return
+
+        # Set the results_directory if not None
+        if self.results_directory is None:
+            self.results_directory = Path(self.directory / 'Results' / self.directory.name / self.batch_name)
+
+        # Check if directory already exists
+        if not self.batch_directory.exists():
+            self.batch_directory.mkdir(parents=True, exist_ok=True)
+
+        # Check if dataset contains the JSON file
+        if Path(self.directory / 'file_paths.json').exists():
+            with open(Path(self.directory / 'file_paths.json'), 'r') as file:
+                self.file_paths = json.load(file)
+
+        else:
+            slicer.util.infoDisplay("Please create the appropriate JSON-file with the file paths.")
+            return
+
+        # Collect already annotated files or else create one
+        if Path(self.batch_directory / 'SegAltReview_annotations.csv').exists():
+            self.current_df = pd.read_csv(Path(self.batch_directory / 'SegAltReview_annotations.csv'), dtype=str)
             annotated_files = set(self.current_df['patientID'].values)
 
         else:
-            columns = ['patientID', 'comment']
-            self.current_df = pd.DataFrame(columns=columns)
+            self.current_df = pd.DataFrame(columns=['patientID', 'comment'])
+            annotated_files = set()
 
-        # Collect images and masks, skipping already annotated ones
-        for folder in Path(directory).iterdir():
-            if folder.is_dir():
-                patientID = folder.name
-                
-                # Skip the file if it's already annotated
-                if patientID in annotated_files:
-                    continue
+        # Collect patients, images and segmentations in file paths JSON
+        self.patientIDs = list(set(self.file_paths.keys()) - annotated_files)
+        self.images = [Path(patientID / Path(self.file_paths[patientID]['image_folder'])) for patientID in self.patientIDs]
+        #self.segmentations = [Path(self.file_paths[patientID]['segmentation_folder']) for patientID in self.patientIDs]
 
-                # Initialize
-                image_file = None
-                seg_file = None
-
-                # Iterate over files in the folder
-                for file in folder.iterdir():
-                    if file.is_file():
-                        # Check if the file contains 'image' in its name
-                        if 'image' in file.name.lower():
-                            image_file = file
-
-                        # Optionally check if the file contains 'segmentation' in its name
-                        elif 'segmentation' in file.name.lower():
-                            seg_file = file
-
-                # Update loop iterables
-                self.n_files += 1
-                self.image_files.append(image_file)
-                self.segmentation_files.append(seg_file)
+        # Set number of patients to check
+        self.n_files = len(self.patientIDs)
 
         # Reset the UI to original
         self.resetUIElements()
@@ -236,11 +237,28 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         if self.n_files != 0:
             # Load the first case
             self.load_files()
+
         else:
             # Say that everything is already checked
             self.ui.var_check.setText("All files are checked!")
             self.ui.var_ID.setText('')
             print("All files checked")
+
+    def onDropdownSelectionChanged(self):
+        """
+        Callback function for handling the dropdown selection.
+        """
+
+        # Set the batch name
+        self.batch_name = self.optionComboBox.currentText
+
+        # Check if appropriate name has been chosen
+        if self.batch_name == "Please select your name":
+            slicer.util.infoDisplay("Please select your name before starting.")
+            return
+
+        # Update the batch directory
+        self.batch_directory = Path(self.results_directory / self.batch_name)
 
     def resetUIElements(self):
         self.ui.var_comment.clear()
@@ -248,43 +266,14 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
     def onSaveNextClicked(self):
         # Get the file path where you want to save the segmentation node
-        seg_file_path = self.results_directory / f'SegAltReview_{self.image_files[self.current_index].parent.name}.seg.nrrd'
-        
-        # Set segmentation
-        segmentation = self.segmentation_node.GetSegmentation()
-        
-        # Initialize variables
-        self.segment_id_fascia = None
-        self.segment_id_prostate = None
-        
-        # Check and obtain segment IDs if not already set
-        for seg_id in segmentation.GetSegmentIDs():
-            segment_name = segmentation.GetSegment(seg_id).GetName().lower()
-            if segment_name == 'prostate':
-                self.segment_id_prostate = seg_id
-            elif segment_name == 'fascia':
-                self.segment_id_fascia = seg_id
-
-        # Check if both 'Prostate' and 'Fascia' segments are present
-        if self.segment_id_prostate and self.segment_id_fascia:
-            # Reorder 'Prostate' to index 0 if necessary
-            if segmentation.GetSegmentIndex(self.segment_id_prostate) != 0:
-                segmentation.SetSegmentIndex(self.segment_id_prostate, 0)
-            # Reorder 'Fascia' to index 1 if necessary
-            if segmentation.GetSegmentIndex(self.segment_id_fascia) != 1:
-                segmentation.SetSegmentIndex(self.segment_id_fascia, 1)
-        
-        else:
-            # Display message if segments are not found
-            slicer.util.infoDisplay("Please create or rename appropriate segments to 'Prostate' and 'Fascia'.")
-            return
+        seg_file_path = self.batch_directory / f'SegAltReview_{self.patientIDs[self.current_index]}.seg.nrrd'
                 
         # Save the segmentation node to file
         slicer.util.saveNode(self.segmentation_node, str(seg_file_path))
 
         # Add to csv of annotations
         new_result = {
-            'patientID': str(self.image_files[self.current_index].parent.name),
+            'patientID': str(self.patientIDs[self.current_index]),
             'comment': self.ui.var_comment.toPlainText()
         }
         self.append_to_csv(new_result)
@@ -329,7 +318,7 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                 print(f"Error while removing nodes: {e}")
 
             self.current_index -= 1
-            self.current_df = pd.read_csv(self.results_directory / 'SegAltReview_annotations.csv', dtype=str)
+            self.current_df = pd.read_csv(self.batch_directory / 'SegAltReview_annotations.csv', dtype=str)
             self.load_files()
             self.resetUIElements()
 
@@ -344,7 +333,7 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         new_row = {column: str(new_row_data.get(column, None)) if new_row_data.get(column) is not None else None for column in required_columns}
 
         # Full path to the CSV file
-        file_path = Path(self.results_directory / 'SegAltReview_annotations.csv')
+        file_path = Path(self.batch_directory / 'SegAltReview_annotations.csv')
         
         # Check if the patientID already exists
         if new_row['patientID'] in self.current_df['patientID'].values:
@@ -376,98 +365,51 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         
     def load_files(self):
         # Load image
-        file_path = self.image_files[self.current_index]
-        self.volume_node = slicer.util.loadVolume(file_path)
+        image_path = Path(self.directory / self.images[self.current_index] / '1-001.dcm')
+        self.volume_node = slicer.util.loadVolume(image_path)
         slicer.app.applicationLogic().PropagateVolumeSelection(0)
 
         # Retrieve segmentation path
-        print(self.current_index, self.updated_segmentations)
         if not self.current_index < len(self.updated_segmentations):
-            print('New')
-            segmentation_file_path = self.segmentation_files[self.current_index]
+            segmentation_file_path = None
+
         else:
             segmentation_file_path = self.updated_segmentations[self.current_index]
-            print('Old')
-            
-        # Initialize variables
-        self.segment_id_fascia = None
-        self.segment_id_prostate = None
 
         if segmentation_file_path is not None:
             # Load segmentation
             self.segmentation_node = slicer.util.loadSegmentation(segmentation_file_path)
             self.segmentation_node.SetReferenceImageGeometryParameterFromVolumeNode(self.volume_node)
-               
+
             # Harden any transformations applied to the segmentation or volume nodes
             slicer.vtkSlicerTransformLogic().hardenTransform(self.segmentation_node)
             slicer.vtkSlicerTransformLogic().hardenTransform(self.volume_node)
-            
-            # Setting the visualization of the segmentation to outline only
-            segmentationDisplayNode = self.segmentation_node.GetDisplayNode()
-            segmentationDisplayNode.SetVisibility2DFill(False)  # Do not show filled region in 2D
-            segmentationDisplayNode.SetVisibility2DOutline(True)  # Show outline in 2D
-            segmentationDisplayNode.SetVisibility(True)
-            
-            # Get the segmentation object from the node
-            seg = self.segmentation_node.GetSegmentation()
-            
-            for seg_id in seg.GetSegmentIDs():
-                segment = seg.GetSegment(seg_id)
-                if segment.GetName().lower() == 'fascia':
-                    self.segment_id_fascia = seg_id
-                    segment.SetColor([1.0, 1.0, 0.0])
-                elif segment.GetName().lower() == 'prostate':
-                    self.segment_id_prostate = seg_id
-                else:
-                    segmentationDisplayNode.SetSegmentVisibility(seg_id, False)
-                    
-            # Check if 'Fascia' and 'Prostate' segments are already present, if not, create one
-            # Fascia
-            if self.segment_id_fascia is not None:
-                print(f"The segment with label 'Fascia' already exists.")
-            else:
-                # Create a new segment with the specified label
-                self.segment_id_fascia = seg.AddEmptySegment('Fascia')
-                segment = seg.GetSegment(self.segment_id_fascia)
-                if segment:
-                    segment.SetName('Fascia')
-                    segment.SetColor([1.0, 1.0, 0.0])
 
         else:
-            # Create a new segmentation node
+            # Create a new segmentation
             self.segmentation_node = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLSegmentationNode')
             self.segmentation_node.SetName("Segmentation")
 
             # Add a display node to the segmentation node
             segmentationDisplayNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLSegmentationDisplayNode')
             self.segmentation_node.SetAndObserveDisplayNodeID(segmentationDisplayNode.GetID())
-            
-            # Setting the visualization of the segmentation to outline only
-            segmentationDisplayNode.SetVisibility2DFill(False)  # Do not show filled region in 2D
-            segmentationDisplayNode.SetVisibility2DOutline(True)  # Show outline in 2D
-            segmentationDisplayNode.SetVisibility(True)
-            
+
             # Get the segmentation object from the node
             seg = self.segmentation_node.GetSegmentation()
+            seg_id = seg.AddEmptySegment('Tumor')
+            segment = seg.GetSegment(seg_id)
+            segment.SetColor([1.0, 1.0, 0.0])
 
-            # Add segments with the specified labels
-            for label in ["Prostate", "Fascia"]:
-                segment_id = seg.AddEmptySegment(label)
-                if label == "Prostate":
-                    self.segment_id_prostate = segment_id
-
-                segment = seg.GetSegment(segment_id)
-                if segment:
-                    segment.SetName(label)
+        # Setting the visualization of the segmentation to outline only
+        segmentationDisplayNode = self.segmentation_node.GetDisplayNode()
+        segmentationDisplayNode.SetVisibility2DFill(False)  # Do not show filled region in 2D
+        segmentationDisplayNode.SetVisibility2DOutline(True)  # Show outline in 2D
+        segmentationDisplayNode.SetVisibility(True)
 
         # Connect segmentation editor to the masks
         self.set_segmentation_and_mask_for_segmentation_editor()
         self.ui.var_check.setText(str(self.current_index) + " / " + str(self.n_files))
-        self.ui.var_ID.setText(str(file_path.parent.name))
-
-        # Check if prostate is already there
-        if self.segment_id_prostate is None:
-            slicer.util.infoDisplay("Please create or rename appropriate segment to 'Prostate'.")
+        self.ui.var_ID.setText(str(self.patientIDs[self.current_index]))
 
     def set_segmentation_and_mask_for_segmentation_editor(self):
         slicer.app.processEvents()
@@ -477,7 +419,6 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.segmentEditorWidget.setMRMLSegmentEditorNode(self.segmentEditorNode)
         self.segmentEditorWidget.setSegmentationNode(self.segmentation_node)
         self.segmentEditorWidget.setActiveEffectByName("Paint")
-        self.segmentEditorWidget.setCurrentSegmentID(self.segment_id_fascia)
         self.segmentEditorWidget.setSourceVolumeNode(self.volume_node)
         self.segmentEditorNode.SetOverwriteMode(2)
         self.segmentEditorNode.SetMaskMode(4)
