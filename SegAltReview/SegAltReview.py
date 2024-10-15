@@ -145,6 +145,7 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         # Add options to the dropdown menu
         self.optionComboBox.addItem("Please select your name")
         self.optionComboBox.addItem("Kalina")
+        self.optionComboBox.addItem("Daan")
 
         # Add the label and the dropdown to the layout underneath the directory widget
         self.parametersFormLayout.addRow(self.optionLabel, self.optionComboBox)
