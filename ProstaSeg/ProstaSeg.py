@@ -211,19 +211,19 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
                 # Iterate over files in the folder
                 for file in folder.iterdir():
-                    print(file)
                     if file.is_file():
                         # Check if the file contains 'image' in its name
                         if 'image' in file.name.lower():
                             image_file = file
 
                         # Optionally check if the file contains 'segmentation' in its name
-                        elif 'segmentation' in file.name.lower() and not patientID in annotated_files:
-                            seg_file = file
+                        elif 'segmentation' in file.name.lower():
+                            if patientID in annotated_files:
+                                seg_file = self.results_directory / f'prostaseg_{patientID}.seg.nrrd'
+                                self.current_index += 1
 
-                        elif patientID in annotated_files:
-                            seg_file = self.results_directory / f'prostaseg_{patientID}.seg.nrrd'
-                            self.current_index += 1
+                            else:
+                                seg_file = file
 
                 # Update loop iterables
                 self.n_files += 1
@@ -456,7 +456,6 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             seg = self.segmentation_node.GetSegmentation()
             
             for seg_id in seg.GetSegmentIDs():
-                print(f'Segment ID: {seg_id}')
                 segment = seg.GetSegment(seg_id)
                 if segment.GetName().lower() == 'fascia':
                     self.segment_id_fascia = seg_id
