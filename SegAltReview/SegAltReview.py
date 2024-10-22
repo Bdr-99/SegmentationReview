@@ -226,7 +226,7 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         # Collect patients, images and segmentations in file paths JSON
         self.patientIDs = list(set(self.file_paths.keys()) - annotated_files)
-        self.images = [Path(patientID / Path(self.file_paths[patientID]['image_folder'])) for patientID in self.patientIDs]
+        self.images = [Path(patientID / Path(self.file_paths[patientID]['image_file'])) for patientID in self.patientIDs]
         #self.segmentations = [Path(self.file_paths[patientID]['segmentation_folder']) for patientID in self.patientIDs]
 
         # Set number of patients to check
@@ -366,7 +366,7 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         
     def load_files(self):
         # Load image
-        image_path = Path(self.directory / self.images[self.current_index] / '1-001.dcm')
+        image_path = Path(self.directory / self.images[self.current_index])
         self.volume_node = slicer.util.loadVolume(image_path)
         slicer.app.applicationLogic().PropagateVolumeSelection(0)
 
