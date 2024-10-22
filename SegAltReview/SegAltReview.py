@@ -195,12 +195,20 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         # Check if appropriate name has been chosen
         if not hasattr(self, 'batch_name') or self.batch_name == "Please select your name" :
+            if self.default_directory:
+                self.atlasDirectoryButton.directory = self.default_directory
+            
             slicer.util.infoDisplay("Please select your name before starting.")
             return
 
         # Set the results_directory if not None
         if self.results_directory is None:
-            self.results_directory = Path(self.directory / 'Results' / self.directory.name / self.batch_name)
+            self.results_directory = Path(self.directory / 'Results' / self.directory.name)
+            self.batch_directory = Path(self.results_directory / self.batch_name)
+        
+        else:
+            self.results_directory = Path(self.results_directory / self.directory.name)
+            self.batch_directory = Path(self.results_directory / self.batch_name)
 
         # Check if directory already exists
         if not self.batch_directory.exists():
@@ -257,9 +265,6 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         if self.batch_name == "Please select your name":
             slicer.util.infoDisplay("Please select your name before starting.")
             return
-
-        # Update the batch directory
-        self.batch_directory = Path(self.results_directory / self.batch_name)
 
     def resetUIElements(self):
         self.ui.var_comment.clear()
