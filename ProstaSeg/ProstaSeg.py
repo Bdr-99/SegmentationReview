@@ -199,7 +199,7 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             columns = ['patientID', 'comment']
             self.current_df = pd.DataFrame(columns=columns)
             annotated_files = set()
-
+        
         # Collect images and masks, skipping already annotated ones
         for folder in Path(directory).iterdir():
             if folder.is_dir():
@@ -232,10 +232,17 @@ class ProstaSegWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         # Reset the UI to original
         self.resetUIElements()
-
-        if self.n_files != 0:
+        
+        if self.n_files == 0:
+            # Say that everything is already checked
+            self.ui.var_check.setText("No patients found in the folder - please select different one")
+            self.ui.var_ID.setText('')
+            print("No patients found in the folder - please select different one")
+            
+        elif self.current_index < self.n_files:
             # Load the first case
             self.load_files()
+        
         else:
             # Say that everything is already checked
             self.ui.var_check.setText("All files are checked!")
