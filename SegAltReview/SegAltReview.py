@@ -10,6 +10,7 @@ from slicer.util import VTKObservationMixin
 import ctk
 import qt
 import json
+import re
 
 try:
     import pandas as pd
@@ -139,12 +140,13 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.parametersFormLayout = qt.QFormLayout(parametersCollapsibleButton)
 
         # Create a label and dropdown (QComboBox)
-        self.optionLabel = qt.QLabel("Radiologist:")
+        self.optionLabel = qt.QLabel("Rater:")
         self.optionComboBox = qt.QComboBox()
 
         # Add options to the dropdown menu
         self.optionComboBox.addItem("Please select your name")
         self.optionComboBox.addItem("Kalina")
+        self.optionComboBox.addItem("George")
         self.optionComboBox.addItem("Daan")
 
         # Add the label and the dropdown to the layout underneath the directory widget
@@ -176,18 +178,24 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
     def onAtlasDirectoryChanged(self, directory):
         try:
-            if self.volume_node and slicer.mrmlScene.IsNodePresent(self.volume_node):
-                slicer.mrmlScene.RemoveNode(self.volume_node)
-            if self.segmentation_node and slicer.mrmlScene.IsNodePresent(self.segmentation_node):
-                slicer.mrmlScene.RemoveNode(self.segmentation_node)
+            # Get all nodes in the scene
+            nodes = slicer.mrmlScene.GetNodes()
+            node_count = nodes.GetNumberOfItems()
+            
+            # Iterate over all nodes and remove only data-related nodes
+            for i in range(node_count):
+                node = nodes.GetItemAsObject(0)  # Always get the first node, as the list updates when nodes are removed
+                
+                # Check if the node is a data node (e.g., volumes, segmentations, models, etc.)
+                if node.IsA("vtkMRMLScalarVolumeNode") or \
+                   node.IsA("vtkMRMLSegmentationNode") or \
+                   node.IsA("vtkMRMLModelNode") or \
+                   node.IsA("vtkMRMLMarkupsNode"):  # Add other data node types as needed
+                    slicer.mrmlScene.RemoveNode(node)
+            
+            print("All data nodes removed successfully.")
         except Exception as e:
-            print(f"Error while removing nodes: {e}")
-
-        # Clear the previously loaded image and segmentation
-        if self.volume_node:
-            slicer.mrmlScene.RemoveNode(self.volume_node)
-        if self.segmentation_node:
-            slicer.mrmlScene.RemoveNode(self.segmentation_node)
+            print(f"Error while removing data nodes: {e}")
 
         # Set the new directory
         self.directory = Path(directory)
@@ -215,8 +223,8 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             self.batch_directory.mkdir(parents=True, exist_ok=True)
 
         # Check if dataset contains the JSON file
-        if Path(self.directory / 'file_paths.json').exists():
-            with open(Path(self.directory / 'file_paths.json'), 'r') as file:
+        if Path(self.directory / 'radiomics_study.json').exists():
+            with open(Path(self.directory / 'radiomics_study.json'), 'r') as file:
                 self.file_paths = json.load(file)
 
         else:
@@ -227,18 +235,24 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         if Path(self.batch_directory / 'SegAltReview_annotations.csv').exists():
             self.current_df = pd.read_csv(Path(self.batch_directory / 'SegAltReview_annotations.csv'), dtype=str)
             annotated_files = set(self.current_df['patientID'].values)
+            if annotated_files:
+                self.updated_segmentations = [f'SegAltReview_{patientID}.seg.nrrd' for patientID in sorted(annotated_files)]
 
         else:
             self.current_df = pd.DataFrame(columns=['patientID', 'comment'])
             annotated_files = set()
 
         # Collect patients, images and segmentations in file paths JSON
-        self.patientIDs = list(set(self.file_paths.keys()) - annotated_files)
-        self.images = [Path(patientID / Path(self.file_paths[patientID]['image_file'])) for patientID in self.patientIDs]
-        #self.segmentations = [Path(self.file_paths[patientID]['segmentation_folder']) for patientID in self.patientIDs]
+        self.patientIDs = list(self.file_paths.keys())
+        self.new_patientIDs = list(set(self.patientIDs) - annotated_files)
+        self.images = [Path(patientID) / Path(self.file_paths[patientID]['image_file']) for patientID in self.patientIDs]
+        self.original_segmentations = [Path(patientID) / Path(self.file_paths[patientID]['segmentation_file']) for patientID in self.patientIDs]
 
-        # Set number of patients to check
+        # Set number of patients
         self.n_files = len(self.patientIDs)
+        
+        # Set current index of patients to check
+        self.current_index = int(self.n_files - len(self.new_patientIDs))
 
         # Reset the UI to original
         self.resetUIElements()
@@ -292,6 +306,19 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.goNext()
 
     def onPreviousClicked(self):
+        # Get the file path where you want to save the segmentation node
+        seg_file_path = self.batch_directory / f'SegAltReview_{self.patientIDs[self.current_index]}.seg.nrrd'
+                
+        # Save the segmentation node to file
+        slicer.util.saveNode(self.segmentation_node, str(seg_file_path))
+
+        # Add to csv of annotations
+        new_result = {
+            'patientID': str(self.patientIDs[self.current_index]),
+            'comment': self.ui.var_comment.toPlainText()
+        }
+        self.append_to_csv(new_result)
+        
         # Return to previous case
         self.goPrevious()
 
@@ -301,6 +328,8 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                 slicer.mrmlScene.RemoveNode(self.volume_node)
             if self.segmentation_node and slicer.mrmlScene.IsNodePresent(self.segmentation_node):
                 slicer.mrmlScene.RemoveNode(self.segmentation_node)
+            if self.roi_node and slicer.mrmlScene.IsNodePresent(self.roi_node):
+                slicer.mrmlScene.RemoveNode(self.roi_node)
         except Exception as e:
             print(f"Error while removing nodes: {e}")
 
@@ -320,6 +349,8 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
                     slicer.mrmlScene.RemoveNode(self.volume_node)
                 if self.segmentation_node and slicer.mrmlScene.IsNodePresent(self.segmentation_node):
                     slicer.mrmlScene.RemoveNode(self.segmentation_node)
+                if self.roi_node and slicer.mrmlScene.IsNodePresent(self.roi_node):
+                    slicer.mrmlScene.RemoveNode(self.roi_node)
             except Exception as e:
                 print(f"Error while removing nodes: {e}")
 
@@ -380,7 +411,7 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             segmentation_file_path = None
 
         else:
-            segmentation_file_path = self.updated_segmentations[self.current_index]
+            segmentation_file_path = Path(self.batch_directory / self.updated_segmentations[self.current_index])
 
         if segmentation_file_path is not None:
             # Load segmentation
@@ -405,7 +436,7 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             seg_id = seg.AddEmptySegment('Tumor')
             segment = seg.GetSegment(seg_id)
             segment.SetColor([1.0, 1.0, 0.0])
-
+        
         # Setting the visualization of the segmentation to outline only
         segmentationDisplayNode = self.segmentation_node.GetDisplayNode()
         segmentationDisplayNode.SetVisibility2DFill(False)  # Do not show filled region in 2D
@@ -416,6 +447,74 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.set_segmentation_and_mask_for_segmentation_editor()
         self.ui.var_check.setText(str(self.current_index) + " / " + str(self.n_files))
         self.ui.var_ID.setText(str(self.patientIDs[self.current_index]))
+
+
+        # Set bounding box
+        extents = []
+        space_origin = None
+        space_directions = []
+
+        # Read file header
+        with open(Path(self.directory / self.original_segmentations[self.current_index]), 'rb') as file:
+            for line in file:
+                try:
+                    line = line.decode('utf-8')
+                    if line.strip() == "":
+                        break
+                    if line.startswith("Segment") and "_Extent:=" in line:
+                        extents.append(list(map(int, re.match(r"Segment\d+_Extent:=([\d\s]+)", line).group(1).split())))
+                    elif line.startswith("space origin:"):
+                        space_origin = np.array(list(map(float, re.findall(r"-?\d+\.\d+|-?\d+", line))))
+                    elif line.startswith("space directions:"):
+                        directions = re.findall(r'\(.*?\)|none', line)
+                        for dir_line in directions:
+                            if dir_line != "none":
+                                # Extract numbers and convert to float (works for both integers and floats)
+                                space_directions.append([float(num) for num in re.findall(r"-?\d+\.\d+|-?\d+", dir_line)])
+                        
+                except UnicodeDecodeError:
+                    break
+        
+        
+        # Prepare data
+        extents = np.array(extents)
+        voxel_min = np.min(extents[:, [0, 2, 4]], axis=0)
+        voxel_max = np.max(extents[:, [1, 3, 5]], axis=0)
+
+        # Convert voxel extents to spatial coordinates
+        space_directions = np.array(space_directions[-3:])  # Keep last 3 directions
+        spatial_min = space_origin + np.dot(space_directions, voxel_min)
+        spatial_max = space_origin + np.dot(space_directions, voxel_max)
+
+        # Adjust for RAS system: negate X and Y coordinates
+        spatial_min[:2] = -spatial_min[:2]  # Negate L-R and P-A (X and Y)
+        spatial_max[:2] = -spatial_max[:2]  # Negate L-R and P-A (X and Y)
+
+        # Compute spatial size and apply margin
+        spatial_size = spatial_max - spatial_min
+        margin = 0.5 * spatial_size  # 30% margin in spatial coordinates
+        spatial_min = spatial_min - margin / 2  # Expand equally on both sides
+        spatial_max = spatial_max + margin / 2
+        spatial_center = (spatial_min + spatial_max) / 2
+        spatial_size = spatial_max - spatial_min
+
+        # Create ROI node
+        self.roi_node = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsROINode", "BoundingBox")
+        self.roi_node.SetCenter(spatial_center.tolist())
+        self.roi_node.SetSize(spatial_size.tolist())
+        self.roi_node.SetNthControlPointVisibility(0, False)
+        
+        # Style the bounding box
+        roi_display = self.roi_node.GetDisplayNode()
+        roi_display.SetVisibility(True)  # Make the ROI visible
+        roi_display.SetHandlesInteractive(False)  # Disable interaction handles
+        roi_display.SetPointLabelsVisibility(False)  # Disable point labels
+        roi_display.SetFillVisibility(False)  # Disable the fill
+        roi_display.SetPropertiesLabelVisibility(False)
+        roi_display.SetSelectedColor(1.0, 0.0, 0.0)
+        roi_display.SetActiveColor(1.0, 0.0, 0.0)
+        roi_display.SetColor(1.0, 0.0, 0.0)  # Set bounding box color (red)
+
 
     def set_segmentation_and_mask_for_segmentation_editor(self):
         slicer.app.processEvents()
