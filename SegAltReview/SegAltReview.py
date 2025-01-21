@@ -68,6 +68,7 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self._updatingGUIFromParameterNode = False
         self.volume_node = None
         self.segmentation_node = None
+        self.roi_display = None
         self.segmentation_visible = False
         self.segmentation_color = [1, 0, 0]
         self.updated_segmentations = []
@@ -119,6 +120,7 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.optionComboBox.currentIndexChanged.connect(self.onDropdownSelectionChanged)
         self.ui.save_next.connect('clicked(bool)', self.onSaveNextClicked)
         self.ui.previous.connect('clicked(bool)', self.onPreviousClicked)
+        self.ui.bounding.connect('clicked(bool)', self.onToggleClicked)
 
     def _createDirectoryWidget(self):
         self.atlasDirectoryButton = ctk.ctkDirectoryButton()
@@ -146,6 +148,7 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         # Add options to the dropdown menu
         self.optionComboBox.addItem("Please select your name")
         self.optionComboBox.addItem("Kalina")
+        self.optionComboBox.addItem("Lily")
         self.optionComboBox.addItem("George")
         self.optionComboBox.addItem("Daan")
 
@@ -202,7 +205,7 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.parent_directory = self.directory.parent
 
         # Check if appropriate name has been chosen
-        if not hasattr(self, 'batch_name') or self.batch_name == "Please select your name" :
+        if not hasattr(self, 'batch_name') or self.batch_name == "Please select your name":
             if self.default_directory:
                 self.atlasDirectoryButton.directory = self.default_directory
             
@@ -236,17 +239,29 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             self.current_df = pd.read_csv(Path(self.batch_directory / 'SegAltReview_annotations.csv'), dtype=str)
             annotated_files = set(self.current_df['patientID'].values)
             if annotated_files:
-                self.updated_segmentations = [f'SegAltReview_{patientID}.seg.nrrd' for patientID in sorted(annotated_files)]
+                self.updated_segmentations = {patientID: f'SegAltReview_{patientID}.seg.nrrd' for patientID in sorted(annotated_files)}
 
         else:
             self.current_df = pd.DataFrame(columns=['patientID', 'comment'])
             annotated_files = set()
 
         # Collect patients, images and segmentations in file paths JSON
-        self.patientIDs = list(self.file_paths.keys())
-        self.new_patientIDs = list(set(self.patientIDs) - annotated_files)
-        self.images = [Path(patientID) / Path(self.file_paths[patientID]['image_file']) for patientID in self.patientIDs]
-        self.original_segmentations = [Path(patientID) / Path(self.file_paths[patientID]['segmentation_file']) for patientID in self.patientIDs]
+        self.patientIDs = sorted(list(self.file_paths.keys()))  # Ensure sorted patientIDs
+        self.new_patientIDs = sorted(list(set(self.patientIDs) - annotated_files))  # Sort the difference as well
+        self.old_patientIDs = sorted(patient
+
+        # Create dictionaries for images and segmentations
+        self.images = {
+            patientID: Path(patientID) / Path(self.file_paths[patientID]['image_file']) 
+            if self.file_paths[patientID]['image_file'] is not None else None
+            for patientID in self.patientIDs
+        }
+
+        self.original_segmentations = {
+            patientID: Path(patientID) / Path(self.file_paths[patientID]['segmentation_file']) 
+            if self.file_paths[patientID]['segmentation_file'] is not None else None
+            for patientID in self.patientIDs
+        }
 
         # Set number of patients
         self.n_files = len(self.patientIDs)
@@ -257,7 +272,7 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         # Reset the UI to original
         self.resetUIElements()
 
-        if self.n_files != 0:
+        if len(self.new_patientIDs) != 0:
             # Load the first case
             self.load_files()
 
@@ -266,6 +281,7 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             self.ui.var_check.setText("All files are checked!")
             self.ui.var_ID.setText('')
             print("All files checked")
+
 
     def onDropdownSelectionChanged(self):
         """
@@ -321,7 +337,16 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         
         # Return to previous case
         self.goPrevious()
-
+        
+    def onToggleClicked(self):
+        if self.roi_display:
+            # Get the current visibility state
+            current_visibility = self.roi_display.GetVisibility()
+            
+            # Toggle visibility
+            new_visibility = 0 if current_visibility else 1
+            self.roi_display.SetVisibility(new_visibility)
+            
     def goNext(self):
         try:
             if self.volume_node and slicer.mrmlScene.IsNodePresent(self.volume_node):
@@ -447,73 +472,99 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.set_segmentation_and_mask_for_segmentation_editor()
         self.ui.var_check.setText(str(self.current_index) + " / " + str(self.n_files))
         self.ui.var_ID.setText(str(self.patientIDs[self.current_index]))
+        
+        # Check if the current segmentation is not None
+        if self.original_segmentations[self.current_index] is not None:
+            # Set bounding box
+            extents = []
+            space_origin = None
+            space_directions = []
 
+            # Read file header
+            with open(Path(self.directory / self.original_segmentations[self.current_index]), 'rb') as file:
+                current_segment_name = None  # Track the name of the current segment
+                temp_extent = None  # Temporarily store extent until matched with a name
 
-        # Set bounding box
-        extents = []
-        space_origin = None
-        space_directions = []
+                for line in file:
+                    try:
+                        line = line.decode('utf-8')
+                        if line.strip() == "":
+                            break
 
-        # Read file header
-        with open(Path(self.directory / self.original_segmentations[self.current_index]), 'rb') as file:
-            for line in file:
-                try:
-                    line = line.decode('utf-8')
-                    if line.strip() == "":
+                        # Check for segment name
+                        if line.startswith("Segment") and "_Name:=" in line:
+                            current_segment_name = re.match(r"Segment\d+_Name:=([\w\s,]+)", line).group(1).strip()
+
+                            # If extent is already found and name matches, add to extents
+                            if current_segment_name == "Neoplasm, Primary" and temp_extent is not None:
+                                extents.append(temp_extent)
+                                temp_extent = None  # Clear temp_extent after appending
+                                current_segment_name = None
+                                
+                        # Check for extent
+                        elif line.startswith("Segment") and "_Extent:=" in line:
+                            temp_extent = list(map(int, re.match(r"Segment\d+_Extent:=([\d\s]+)", line).group(1).split()))
+
+                            # If name is already found and matches, add to extents
+                            if current_segment_name == "Neoplasm, Primary":
+                                extents.append(temp_extent)
+                                temp_extent = None  # Clear temp_extent after appending
+                                current_segment_name = None
+
+                        # Handle space origin
+                        elif line.startswith("space origin:"):
+                            space_origin = np.array(list(map(float, re.findall(r"-?\d+\.\d+|-?\d+", line))))
+
+                        # Handle space directions
+                        elif line.startswith("space directions:"):
+                            directions = re.findall(r'\(.*?\)|none', line)
+                            for dir_line in directions:
+                                if dir_line != "none":
+                                    # Extract numbers and convert to float (works for both integers and floats)
+                                    space_directions.append([float(num) for num in re.findall(r"-?\d+\.\d+|-?\d+", dir_line)])
+
+                    except UnicodeDecodeError:
                         break
-                    if line.startswith("Segment") and "_Extent:=" in line:
-                        extents.append(list(map(int, re.match(r"Segment\d+_Extent:=([\d\s]+)", line).group(1).split())))
-                    elif line.startswith("space origin:"):
-                        space_origin = np.array(list(map(float, re.findall(r"-?\d+\.\d+|-?\d+", line))))
-                    elif line.startswith("space directions:"):
-                        directions = re.findall(r'\(.*?\)|none', line)
-                        for dir_line in directions:
-                            if dir_line != "none":
-                                # Extract numbers and convert to float (works for both integers and floats)
-                                space_directions.append([float(num) for num in re.findall(r"-?\d+\.\d+|-?\d+", dir_line)])
-                        
-                except UnicodeDecodeError:
-                    break
-        
-        
-        # Prepare data
-        extents = np.array(extents)
-        voxel_min = np.min(extents[:, [0, 2, 4]], axis=0)
-        voxel_max = np.max(extents[:, [1, 3, 5]], axis=0)
+            
+            
+            # Prepare data
+            extents = np.array(extents)
+            voxel_min = np.min(extents[:, [0, 2, 4]], axis=0)
+            voxel_max = np.max(extents[:, [1, 3, 5]], axis=0)
 
-        # Convert voxel extents to spatial coordinates
-        space_directions = np.array(space_directions[-3:])  # Keep last 3 directions
-        spatial_min = space_origin + np.dot(space_directions, voxel_min)
-        spatial_max = space_origin + np.dot(space_directions, voxel_max)
+            # Convert voxel extents to spatial coordinates
+            space_directions = np.array(space_directions[-3:])  # Keep last 3 directions
+            spatial_min = space_origin + np.dot(space_directions, voxel_min)
+            spatial_max = space_origin + np.dot(space_directions, voxel_max)
 
-        # Adjust for RAS system: negate X and Y coordinates
-        spatial_min[:2] = -spatial_min[:2]  # Negate L-R and P-A (X and Y)
-        spatial_max[:2] = -spatial_max[:2]  # Negate L-R and P-A (X and Y)
+            # Adjust for RAS system: negate X and Y coordinates
+            spatial_min[:2] = -spatial_min[:2]  # Negate L-R and P-A (X and Y)
+            spatial_max[:2] = -spatial_max[:2]  # Negate L-R and P-A (X and Y)
 
-        # Compute spatial size and apply margin
-        spatial_size = spatial_max - spatial_min
-        margin = 0.5 * spatial_size  # 30% margin in spatial coordinates
-        spatial_min = spatial_min - margin / 2  # Expand equally on both sides
-        spatial_max = spatial_max + margin / 2
-        spatial_center = (spatial_min + spatial_max) / 2
-        spatial_size = spatial_max - spatial_min
+            # Compute spatial size and apply margin
+            spatial_size = spatial_max - spatial_min
+            margin = 0.5 * spatial_size  # 30% margin in spatial coordinates
+            spatial_min = spatial_min - margin / 2  # Expand equally on both sides
+            spatial_max = spatial_max + margin / 2
+            spatial_center = (spatial_min + spatial_max) / 2
+            spatial_size = spatial_max - spatial_min
 
-        # Create ROI node
-        self.roi_node = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsROINode", "BoundingBox")
-        self.roi_node.SetCenter(spatial_center.tolist())
-        self.roi_node.SetSize(spatial_size.tolist())
-        self.roi_node.SetNthControlPointVisibility(0, False)
-        
-        # Style the bounding box
-        roi_display = self.roi_node.GetDisplayNode()
-        roi_display.SetVisibility(True)  # Make the ROI visible
-        roi_display.SetHandlesInteractive(False)  # Disable interaction handles
-        roi_display.SetPointLabelsVisibility(False)  # Disable point labels
-        roi_display.SetFillVisibility(False)  # Disable the fill
-        roi_display.SetPropertiesLabelVisibility(False)
-        roi_display.SetSelectedColor(1.0, 0.0, 0.0)
-        roi_display.SetActiveColor(1.0, 0.0, 0.0)
-        roi_display.SetColor(1.0, 0.0, 0.0)  # Set bounding box color (red)
+            # Create ROI node
+            self.roi_node = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsROINode", "BoundingBox")
+            self.roi_node.SetCenter(spatial_center.tolist())
+            self.roi_node.SetSize(spatial_size.tolist())
+            self.roi_node.SetNthControlPointVisibility(0, False)
+            
+            # Style the bounding box
+            self.roi_display = self.roi_node.GetDisplayNode()
+            self.roi_display.SetVisibility(True)  # Make the ROI visible
+            self.roi_display.SetHandlesInteractive(False)  # Disable interaction handles
+            self.roi_display.SetPointLabelsVisibility(False)  # Disable point labels
+            self.roi_display.SetFillVisibility(False)  # Disable the fill
+            self.roi_display.SetPropertiesLabelVisibility(False)
+            self.roi_display.SetSelectedColor(1.0, 0.0, 0.0)
+            self.roi_display.SetActiveColor(1.0, 0.0, 0.0)
+            self.roi_display.SetColor(1.0, 0.0, 0.0)  # Set bounding box color (red)
 
 
     def set_segmentation_and_mask_for_segmentation_editor(self):
