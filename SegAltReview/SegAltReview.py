@@ -248,18 +248,27 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         # Collect patients, images and segmentations in file paths JSON
         self.patientIDs = sorted(list(self.file_paths.keys()))  # Ensure sorted patientIDs
         self.new_patientIDs = sorted(list(set(self.patientIDs) - annotated_files))  # Sort the difference as well
-        self.old_patientIDs = sorted(patient
+        self.old_patientIDs = sorted(list(set(self.patientIDs)- set(self.new_patientIDs)))
 
+        # Update patientIDs to reflect old vs new
+        self.patientIDs = self.old_patientIDs + self.new_patientIDs
+        
         # Create dictionaries for images and segmentations
         self.images = {
-            patientID: Path(patientID) / Path(self.file_paths[patientID]['image_file']) 
-            if self.file_paths[patientID]['image_file'] is not None else None
-            for patientID in self.patientIDs
+        patientID: (
+            Path(patientID) / Path(self.file_paths.get(patientID, {}).get('image_file'))
+            if self.file_paths.get(patientID, {}).get('image_file') is not None
+            else None
+            )
+        for patientID in self.patientIDs
         }
 
         self.original_segmentations = {
-            patientID: Path(patientID) / Path(self.file_paths[patientID]['segmentation_file']) 
-            if self.file_paths[patientID]['segmentation_file'] is not None else None
+            patientID: (
+                Path(patientID) / Path(self.file_paths.get(patientID, {}).get('segmentation_file'))
+                if self.file_paths.get(patientID, {}).get('segmentation_file') is not None
+                else None
+            )
             for patientID in self.patientIDs
         }
 
@@ -268,7 +277,10 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         
         # Set current index of patients to check
         self.current_index = int(self.n_files - len(self.new_patientIDs))
-
+        print(self.patientIDs)
+        print(self.current_index)
+        
+        
         # Reset the UI to original
         self.resetUIElements()
 
@@ -315,8 +327,8 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.append_to_csv(new_result)
         
         # Add new segmentation path to updated list
-        if str(seg_file_path) not in self.updated_segmentations:
-            self.updated_segmentations.append(str(seg_file_path))
+        if self.patientIDs[self.current_index] not in self.updated_segmentations:
+            self.updated_segmentations[self.patientIDs[self.current_index]] = (str(seg_file_path))
         
         # Go to next case
         self.goNext()
@@ -427,16 +439,16 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         
     def load_files(self):
         # Load image
-        image_path = Path(self.directory / self.images[self.current_index])
+        image_path = Path(self.directory / self.images[self.patientIDs[self.current_index]])
         self.volume_node = slicer.util.loadVolume(image_path)
         slicer.app.applicationLogic().PropagateVolumeSelection(0)
 
         # Retrieve segmentation path
-        if not self.current_index < len(self.updated_segmentations):
+        if not self.patientIDs[self.current_index] in self.updated_segmentations:
             segmentation_file_path = None
 
         else:
-            segmentation_file_path = Path(self.batch_directory / self.updated_segmentations[self.current_index])
+            segmentation_file_path = Path(self.batch_directory / self.updated_segmentations[self.patientIDs[self.current_index]])
 
         if segmentation_file_path is not None:
             # Load segmentation
@@ -474,14 +486,14 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.ui.var_ID.setText(str(self.patientIDs[self.current_index]))
         
         # Check if the current segmentation is not None
-        if self.original_segmentations[self.current_index] is not None:
+        if self.original_segmentations[self.patientIDs[self.current_index]] is not None:
             # Set bounding box
             extents = []
             space_origin = None
             space_directions = []
 
             # Read file header
-            with open(Path(self.directory / self.original_segmentations[self.current_index]), 'rb') as file:
+            with open(Path(self.directory / self.original_segmentations[self.patientIDs[self.current_index]]), 'rb') as file:
                 current_segment_name = None  # Track the name of the current segment
                 temp_extent = None  # Temporarily store extent until matched with a name
 
