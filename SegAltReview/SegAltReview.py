@@ -277,10 +277,7 @@ class SegAltReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         
         # Set current index of patients to check
         self.current_index = int(self.n_files - len(self.new_patientIDs))
-        print(self.patientIDs)
-        print(self.current_index)
-        
-        
+       
         # Reset the UI to original
         self.resetUIElements()
 
