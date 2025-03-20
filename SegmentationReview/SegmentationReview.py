@@ -13,19 +13,43 @@ import glob
 import logging
 import json
 import sys
-from concurrent.futures import ThreadPoolExecutor
-
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 
 try:
+    """Check if a package is installed in the Slicer environment space."""
     import pandas as pd
     import numpy as np
     import SimpleITK as sitk
 
-except:
-    slicer.util.pip_install('pandas')
-    slicer.util.pip_install('numpy')
-    slicer.util.pip_install('SimpleITK')
+except ImportError:
+    # Install or import within the user Space (VMWare wont allow otherwise?)
+    import importlib.util
+    import site
 
+
+    def is_installed(package):
+        """Check if a package is installed in either the user space."""
+        user_site = site.getusersitepackages()
+        sys.path.append(user_site)  # add user space path
+        found = importlib.util.find_spec(package) is not None
+        return found
+
+
+    def install(package, user=False):
+        """Install package in Slicer environment or user space."""
+        slicer.util.pip_install(f"--user {package}" if user else package)
+
+
+    # List of required packages
+    packages = ["pandas", "numpy", "SimpleITK"]
+
+    for package in packages:
+        if not is_installed(package):
+            install(package, user=True)  # Try default install
+            if not is_installed(package):
+                raise "Could not import packages!"
+
+    # Import packages after installation and/or adding user site space
     import pandas as pd
     import numpy as np
     import SimpleITK as sitk
@@ -43,7 +67,7 @@ class SegmentationReview(ScriptedLoadableModule):
     def __init__(self, parent):
         ScriptedLoadableModule.__init__(self, parent)
         self.parent.title = "PANCANCER SegmentationReview"
-        self.parent.categories = ["Examples"]
+        self.parent.categories = ["Review"]
         self.parent.dependencies = []
         self.parent.contributors = ["Anna Zapaishchykova (BWH), Dr. Benjamin H. Kann, AIM-Harvard"]
         self.parent.helpText = """
@@ -91,17 +115,17 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
 
         # Default settings segmentations
         self.old_gt_seg_visible = False
-        self.old_gt_seg_color = (0, 0, 1) # We can change this
+        self.old_gt_seg_color = (0, 0, 1)  # We can change this
         self.ai_seg_visible = False
-        self.ai_seg_color = (1, 1, 0) # We can change this -> later on randomized
+        self.ai_seg_color = (1, 1, 0)  # We can change this -> later on randomized
         self.new_gt_seg_visible = False
         self.new_gt_seg_color = (0, 1, 0)
-        self.segmentation_index = 0 # index counter of which segmentation we are
-        self.new_lesions = None # for new lesions
+        self.segmentation_index = 0  # index counter of which segmentation we are
+        self.new_lesions = None  # for new lesions
 
         self.scan_dir = r'\\image-storage\RD_Radiogenomics\ct_lesion_detection\ct_scans'
-        self.llama_dir = r'X:\ct_lesion_detection\documentation\llama3_translated_improved'
-        self.MEGA_documentation_path = r'X:\ct_lesion_detection\documentation\datasets_tumtype.json'
+        self.llama_dir = r'\\image-storage\RD_Radiogenomics\ct_lesion_detection\documentation\llama3_translated_improved'
+        self.MEGA_documentation_path = r'\\image-storage\RD_Radiogenomics\ct_lesion_detection\documentation\datasets_tumtype.json'
         self.scan_files = []
         self.old_gt_seg_files = []
         self.ai_seg_files = []
@@ -117,24 +141,43 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         self.current_df = None
         self.time_start = time.time()
         self.dummy_radio_buttons = []
-        self.all_segments_visable = True # Start with all the segments visable
+        self.all_segments_visable = True  # Start with all the segments visable
 
         # ✅ Set up logging
         self.logger = logging.getLogger(self.__class__.__name__)
 
         # ✅ Ensure the logger only adds a handler once (avoid duplicates)
         if not self.logger.hasHandlers():
-            handler = logging.StreamHandler(sys.stdout)  # ✅ Force logs to show in Slicer
-            handler.setLevel(logging.INFO)  # CHANGE THIS FOR LESS LOGS #1!!
-            formatter = logging.Formatter('%(levelname)s - %(message)s') # %(asctime)s - %(name)s -
+            handler = logging.StreamHandler(sys.stdout)  # Force logs to show in Slicer
+            formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
             handler.setFormatter(formatter)
             self.logger.addHandler(handler)
 
-        self.logger.setLevel(logging.INFO) # CHANGE THIS FOR LESS LOGS #2!!
         self.logger.propagate = False  # ✅ Prevents duplicate logs
+        self._update_logging_level()  # ✅ Dynamically check test mode
 
         # ✅ Test if logging is working
         self.logger.debug("✅ Logger initialized successfully!")
+
+    def _update_logging_level(self):
+        """Dynamically updates logging level based on test mode."""
+        if getattr(slicer, "test_mode", False):  # ✅ Check if `slicer.test_mode` exists
+            self.logger.setLevel(logging.DEBUG)  # Set to DEBUG when running tests
+        else:
+            self.logger.setLevel(logging.INFO)  # Default to INFO in normal usage
+
+    def log(self, level, message):
+        """Wrapper function to ensure logging always uses the correct level."""
+        self._update_logging_level()  # Ensure we always have the right log level
+        if level == "debug":
+            self.logger.debug(message)
+        elif level == "info":
+            self.logger.info(message)
+        elif level == "warning":
+            self.logger.warning(message)
+        elif level == "error":
+            self.logger.error(message)
+
 
     def setup(self):
         """
@@ -152,7 +195,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         parametersCollapsibleButton.text = "Input path"
         self.layout.addWidget(parametersCollapsibleButton)
 
-        self.layout.addWidget(uiWidget) # The annotation form
+        self.layout.addWidget(uiWidget)  # The annotation form
         self.ui = slicer.util.childWidgetVariables(uiWidget)
 
         parametersFormLayout = qt.QFormLayout(parametersCollapsibleButton)
@@ -192,10 +235,10 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         self.ui.previous_segmentation.connect('clicked(bool)', self.to_previous_segment)
         self.ui.focus_segment.connect('clicked(bool)', self.jump_to_segmentation_slice)
 
-        #self.ui.all_views.clicked.connect(lambda: self.change_orientation(3))
-        #self.ui.transversal_view.clicked.connect(lambda: self.change_orientation(6))
-        #self.ui.sagittal_view.clicked.connect(lambda: self.change_orientation(7))
-        #self.ui.coronal_view.clicked.connect(lambda: self.change_orientation(8))
+        # self.ui.all_views.clicked.connect(lambda: self.change_orientation(3))
+        # self.ui.transversal_view.clicked.connect(lambda: self.change_orientation(6))
+        # self.ui.sagittal_view.clicked.connect(lambda: self.change_orientation(7))
+        # self.ui.coronal_view.clicked.connect(lambda: self.change_orientation(8))
 
         self.ui.choose_seg_old.clicked.connect(lambda: self.choose_seg('old'))
         self.ui.choose_seg_ai.clicked.connect(lambda: self.choose_seg('ai'))
@@ -231,7 +274,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         ])
         self.layout.addWidget(self.segmentEditorWidget)
 
-    def get_base_names(self, folder_path, suffixes = '.nrrd'):
+    def get_base_names(self, folder_path, suffixes='.nrrd'):
         """
         Extracts base filenames by removing specified suffixes.
 
@@ -261,21 +304,65 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
 
         return base_names
 
+
+    def add_additional_scans_to_map(self, folder_path, suffix='_0000.nrrd', scan_type="ct_scan", batch_size=500):
+        """Efficiently adds additional scans to self.file_map while preserving existing scan types."""
+
+        file_map_keys = set(self.file_map.keys())  # Convert keys to a set for O(1) lookup
+        updates = {}  # Dictionary to store updates before applying batch update
+
+        with os.scandir(folder_path) as entries:  # Faster than os.listdir()
+            for entry in entries:
+                if not entry.is_file():  # Skip directories
+                    continue
+
+                file_path = entry.path
+                filename = entry.name
+
+                # ✅ Handle `.txt` case separately
+                if suffix == '.txt':
+                    key_prefix = filename.split("-", 1)[0]  # Extract everything before the first '-'
+                    matching_key = next((key for key in file_map_keys if key.startswith(key_prefix)), None)
+
+                    if matching_key:
+                        updates[matching_key] = {scan_type: file_path}  # Store in batch
+                else:
+                    # ✅ Handle regular suffix-based cases
+                    if not filename.endswith(suffix):  # Skip non-matching files early
+                        continue
+
+                    key = filename.rsplit(suffix, 1)[0]  # Extract base name
+
+                    if key in file_map_keys:  # Fast lookup
+                        if key not in updates:
+                            updates[key] = {}  # Ensure key exists in batch updates
+                        updates[key][scan_type] = file_path  # Store in batch
+
+                # ✅ Apply batch updates every `batch_size` items
+                if len(updates) >= batch_size:
+                    for key, new_data in updates.items():
+                        self.file_map.setdefault(key, {}).update(new_data)  # Preserve old values
+                    updates.clear()  # Reset batch
+
+        # ✅ Apply remaining updates (even if < batch_size)
+        if updates:
+            for key, new_data in updates.items():
+                self.file_map.setdefault(key, {}).update(new_data)  # Preserve old value
+
     def onAtlasDirectoryChanged(self, directory):
         """
         Initialized when directory is changed.
         Handles file extraction, filtering, and mapping for AI, GT, and CT files.
         """
 
-        def extract_annotation_prefix(filename):
-            """ Extracts PANCANCER_XXXX(_1) from filenames. """
-            return filename.split("-", 1)[0]  # Take everything before the first '-'
-
         slicer.mrmlScene.Clear(0)  # 0 ensures the scene is cleared but not completely reset
 
         self.directory = directory
         self.reviewer_name = os.path.basename(self.directory)
+        self.logger.info(f'-----------------------------------------------------')
+        self.logger.info(f'Start looking for scans....')
         self.logger.info(f'Working in Folder: {self.reviewer_name}')
+        self.time_start = time.time()
 
         # Initialize variables
         self.n_files = 0
@@ -293,78 +380,53 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         os.makedirs(new_path, exist_ok=True)
         os.makedirs(roi_path, exist_ok=True)
 
-
         ### ✅ Step 2: Get Base Names for AI & OLD Paths
         suffixes = ['.new.seg.nrrd', '.ai.seg.nrrd', '.gt.seg.nrrd', '.seg.nrrd', '_0000.nrrd', '.nrrd', '.txt']
 
-        ai_base_names = self.get_base_names(ai_path,  '.ai.seg.nrrd')  # {basename: full_path}
+        ai_base_names = self.get_base_names(ai_path, '.ai.seg.nrrd')  # {basename: full_path}
         old_base_names = self.get_base_names(old_path, '.gt.seg.nrrd')  # {basename: full_path}
 
         self.logger.debug(f"Found {len(ai_base_names)} AI segmentations")
         self.logger.debug(f"Found {len(old_base_names)} GT segmentations")
 
+        self.logger.debug(f"Start searching for ai and old files")
         ### ✅ Step 3: Compare AI & OLD, create a `file_list` for common files
-        file_list = {key: [old_base_names[key], ai_base_names[key]]
-                     for key in sorted(set(ai_base_names.keys()) & set(old_base_names.keys()))}
+        self.file_map = {
+            key: {"old": old_base_names[key], "ai": ai_base_names[key]}
+            for key in sorted(set(ai_base_names.keys()) & set(old_base_names.keys()))
+        }
 
-        self.logger.debug(f"Found {len(file_list)} common segmentations between AI & OLD")
-
-        ### ✅ Step 4: Filter files by checking for CT presence
-        ct_base_names = self.get_base_names(ct_path, '_0000.nrrd')  # {basename: full_path}
-
-        filtered_file_list = {key: paths for key, paths in file_list.items() if key in ct_base_names}
-
-        self.logger.debug(f"After filtering, {len(filtered_file_list)} files remain with CT scans")
+        self.logger.debug(f"Found {len(self.file_map)} common segmentations between AI & OLD")
+        self.logger.debug(f"Start initializing Pool for searching other files")
 
         ### ✅ Step 5: Get Additional Paths (New Segments, ROI, Annotations)
         with ThreadPoolExecutor() as executor:
-            future_new = executor.submit(self.get_base_names, new_path, '.new.seg.nrrd')
-            future_roi = executor.submit(self.get_base_names, roi_path, '.new_lesions.seg.nrrd')
-            future_annotations = executor.submit(self.get_base_names, annotation_path, '.txt')  # Different logic here
+            executor.submit(self.add_additional_scans_to_map, ct_path, '_0000.nrrd', 'ct_scan')
+            executor.submit(self.add_additional_scans_to_map, new_path, '.new.seg.nrrd', 'new')
+            executor.submit(self.add_additional_scans_to_map, roi_path, '.new_lesions.seg.nrrd', 'roi')
+            executor.submit(self.add_additional_scans_to_map, annotation_path, '.txt', 'annotation')
 
-            new_gt_seg_paths = future_new.result()
-            roi_paths = future_roi.result()
-            annotation_paths = future_annotations.result()  # Dictionary {basename: full_path}
 
-        self.logger.debug(f"Found {len(new_gt_seg_paths)} new segmentations")
-        self.logger.debug(f"Found {len(roi_paths)} ROI files")
-        self.logger.debug(f"Found {len(annotation_paths)} annotations")
+        # Print all the different file types an how many we have of those
+        scan_type_counts = {}
+        for key in self.file_map:
+            for scan_type in self.file_map[key]:  # Iterate over scan types present in this key
+                if scan_type not in scan_type_counts:
+                    scan_type_counts[scan_type] = 0
+                scan_type_counts[scan_type] += 1  # Count occurrences
 
-        ### ✅ Step 6: Build the `file_map` with all paths
-        self.file_map = {}
-        for key, paths in filtered_file_list.items():
-            old_gt, ai_seg = paths
-            ct_scan = ct_base_names.get(key, None)
-            new_seg = new_gt_seg_paths.get(key, None)
-            roi = roi_paths.get(key, None)
-
-            # ✅ Special Handling for Annotation Paths (Matching Prefix)
-            annotation = None
-            annotation_prefix = extract_annotation_prefix(key)  # Extract "PANCANCER_XXXX_1"
-            for ann_key, ann_path in annotation_paths.items():
-                if ann_key == annotation_prefix:  # Check if annotation key matches the extracted prefix
-                    annotation = ann_path
-                    break  # Stop once a match is found
-
-            self.file_map[key] = {
-                'ct_scan': ct_scan,
-                'old': old_gt,
-                'ai': ai_seg,
-                'new': new_seg if new_seg else None,
-                'roi': roi if roi else None,
-                'annotation': annotation if annotation else None
-            }
-
+        self.logger.debug(f"Scan type counts: {scan_type_counts}")
         self.logger.info(f"Found {len(self.file_map)} scans inside the map")
 
-        ### ✅ Step 7: Find First Missing New Segmentation
         missing_segment_name = None
-        for seg_name, data in self.file_map.items():
-            if data['new'] is None:
-                missing_segment_name = seg_name
+
+        for key in self.file_map:
+            self.logger.debug(f"Already reviewed Scan: {key}")
+            if self.file_map[key].get('new') is None:  # Avoid KeyError
+                missing_segment_name = key  # Store key of first missing segmentation
                 break  # Stop at the first missing segmentation
 
-        ### ✅ Step 8: Set Current Index for the First Missing Segmentation
+        # ✅ Step 8: Set Current Index for the First Missing Segmentation
         if missing_segment_name:
             for idx, (seg_name, data) in enumerate(self.file_map.items()):
                 if seg_name == missing_segment_name:
@@ -382,115 +444,14 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         self.ui.status_checked.setText(f"Checked Scans: {self.current_index} / {self.n_files - 1}")
         self.resetUIElements()
 
+        self.logger.debug(f'Finished initializing Pool for searching other files')
+
+        end_time = time.time()
+        self.logger.debug(f'Time taken: {round(end_time - self.time_start, 2)} seconds')
+
         ### ✅ Step 10: Load First File with Mask
         self.load_all()
         self.time_start = time.time()
-
-    def save_and_next_clicked_OLD(self):
-        """
-        Saves the current segmentation and ROI, then proceeds to the next case.
-        If some GT segments are missing from `self.segments_stats`, prompts a warning before saving.
-        Also saves `self.segments_stats` to a CSV file using pandas.
-        """
-
-        # Check if all Old GT segment IDs exist in self.segments_stats
-        missing_segments = []
-        old_gt_segmentation = self.old_gt_seg_node.GetSegmentation()
-
-        for i in range(old_gt_segmentation.GetNumberOfSegments()):
-            segment_id = old_gt_segmentation.GetNthSegmentID(i)
-            if segment_id not in self.segments_stats:
-                missing_segments.append(segment_id)
-
-        # Determine message based on missing segments
-        msg_text = (
-            "<span style='color:red;'>[WARNING]</span>:  Some GT segments are not inside the new segmentation. Are you sure you want to save it?"
-            if missing_segments else "Are you sure you want to go to the next one?"
-        )
-
-        # Show confirmation popup
-        msg = qt.QMessageBox()
-        msg.setIcon(qt.QMessageBox.Warning)
-        msg.setText(msg_text)
-        msg.setStandardButtons(qt.QMessageBox.Yes | qt.QMessageBox.No)
-        response = msg.exec_()
-
-        if response == qt.QMessageBox.No:
-            if missing_segments:
-                # Jump to the first missing segment
-                self.segmentation_index = next(
-                    (index for index, segment_id in enumerate(self.segment_ids) if segment_id in missing_segments),
-                    self.segmentation_index  # Default to current index if no match is found
-                )
-                self.current_segment_id = self.segment_ids[self.segmentation_index]
-                self._ensure_current_segment_visible()  # Ensure visibility of the missing segment
-                self.logger.warning(f"Jumping to first missing segment: {self.current_segment_id}")
-            return  # Stop execution if the user selects 'No'
-
-        # Save self.segments_stats to CSV using pandas
-        csv_path = os.path.join(self.directory, "segment_stats.csv")
-        scan_name = self.scan_key  # Assuming scan_name is defined in the class
-
-        # Load existing CSV if it exists
-        if os.path.exists(csv_path):
-            df = pd.read_csv(csv_path)
-        else:
-            df = pd.DataFrame(columns=["scan_name", "segment_id", "choice", "label_type", "segment_comment", "new_seg"])
-
-        # Check if scan_name already exists in CSV
-        existing_rows = df[df["scan_name"] == scan_name]
-
-        if not existing_rows.empty:
-            # Ask if user wants to overwrite existing scan data
-            if self._confirm_action("Already existing segmentation data, do you want to overwrite it?"):
-                df = df[df["scan_name"] != scan_name]  # Remove old data
-
-        # Create new DataFrame for the current segmentation
-        new_data = pd.DataFrame([
-            {
-                "scan_name": scan_name,
-                "segment_id": segment_id,
-                "choice": stats.get("choice", ""),
-                "label_type": stats.get("label_type", ""),
-                "segment_comment": stats.get("segment_comment", ""),
-                "new_seg": stats.get("new_seg", "")
-            }
-            for segment_id, stats in self.segments_stats.items()
-        ])
-
-        # Append new data and save CSV
-        df = pd.concat([df, new_data], ignore_index=True)
-        df.to_csv(csv_path, index=False)
-
-        # Clear segment_stats from memory to prevent OOM
-        self.segments_stats.clear()
-        self.logger.info(f"Segment statistics saved to {csv_path}")
-
-        # SAVE NEW GT
-        save_path = os.path.join(self.directory, "new", "segments", f"{self.new_gt_seg_node.GetName()}.seg.nrrd")
-        slicer.util.saveNode(self.new_gt_seg_node, save_path)
-        self.new_gt_seg_paths[self.current_index] = save_path  # Add the path to new gt path if we want to go back
-        self.logger.info(f'All Segmentation saved to {os.path.join(self.directory, "new")}')
-
-        # SAVE NEW ROIS IF EXIST
-        if self.ROI_segmentation_node is not None:
-            save_path = os.path.join(self.directory, "new", "roi", f"{self.ROI_segmentation_node.GetName()}.seg.nrrd")
-            slicer.util.saveNode(self.ROI_segmentation_node, save_path)
-            self.roi_paths[self.current_index] = save_path  # Add the path to new roi path if we want to go back
-            self.logger.info(f'Saved new ROI lesions!')
-
-        # Delete existing model storage nodes so that they will be recreated with default settings
-        existingModelStorageNodes = slicer.util.getNodesByClass("vtkMRMLModelStorageNode")
-        for modelStorageNode in existingModelStorageNodes:
-            slicer.mrmlScene.RemoveNode(modelStorageNode)
-
-        # Move to next case
-        self.current_index += 1
-        self.load_all()
-        self.time_start = time.time()
-        self.ui.status_checked.setText(f"Checked Scans: {self.current_index} / {self.n_files - 1}")
-        self.resetUIElements()
-        self.ui.segment_comment.setPlainText("")
 
     def save_and_next_clicked(self):
         """
@@ -545,7 +506,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
 
         roi_path = None  # Default to None
         if self.ROI_segmentation_node is not None:
-            roi_path = os.path.join(self.directory, "new", "roi",f"{self.ROI_segmentation_node.GetName()}.seg.nrrd")
+            roi_path = os.path.join(self.directory, "new", "roi", f"{self.ROI_segmentation_node.GetName()}.seg.nrrd")
 
         csv_path = os.path.join(self.directory, f"segment_stats_{self.reviewer_name}.csv")  # CSV for segmentation stats
 
@@ -694,7 +655,6 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         file_data = self.file_map[scan_key]  # Retrieve all associated paths
         scan_id = scan_key.split("-")[0]
 
-
         ct_scan_path = file_data['ct_scan']
         old_gt_seg_path = file_data['old']
         ai_seg_path = file_data['ai']
@@ -766,7 +726,6 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         if new_gt_seg_path:
             self.new_gt_seg_node = slicer.util.loadSegmentation(new_gt_seg_path)
             if self.new_gt_seg_node:
-
                 self.update_comment('Existing Segmentation file loaded in', 'orange')
                 self.logger.info(f'Found existing new segmentation file for {scan_id}, loading it in.')
         else:
@@ -798,13 +757,14 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
                 self.ui.annotation_form.setPlainText(annotation_text)
 
         else:
-            annotation_text = next((self.MEGA_documentation[dataset] for dataset in self.MEGA_documentation if dataset in scan_key),
-                                   "No Radiology Report Found")
-            self.ui.annotation_form.setPlainText(annotation_text)
+            annotation_text = next(
+                (self.MEGA_documentation[dataset] for dataset in self.MEGA_documentation if dataset in scan_key),
+                "No Radiology Report Found")
+            self.ui.annotation_form.setHtml(annotation_text)
 
         slicer.app.processEvents()  # Allow UI to catch up
 
-                # ✅ Step 9: Display the Number of Segments
+        # ✅ Step 9: Display the Number of Segments
         num_segments = len(self.segment_ids)
         self.current_segment_id = self.segment_ids[0] if self.segment_ids else None
 
@@ -816,6 +776,8 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
 
         self.logger.info("✅ Done Loading in!.")
         self.logger.info(f"Total unique segmentation places: {num_segments}")
+        end_time = time.time()
+        self.logger.debug(f'Time taken: {round(end_time - self.time_start, 2)} seconds')
         self.logger.info('-----------------------------------------------------\n')
 
     def choose_seg(self, choice):
@@ -860,7 +822,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         if self.ai_seg_available and self.old_seg_available:
             source_segmentation = self.old_gt_seg_node.GetSegmentation() if choice == 'old' else self.ai_seg_node.GetSegmentation()
             self.segments_stats[segment_id]["new_seg"] = False  # GT segment exists, so not new
-              # Get the GT segment name
+            # Get the GT segment name
         # If only AI is available:
         elif self.ai_seg_available:
             if choice == 'ai':
@@ -894,7 +856,8 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
             else:
                 # Removing GT? Not really a good option??
                 self.logger.debug('REMOVING GT???')
-                self._remove_segment_with_confirmation(new_segmentation, segment_id,"Remove already existing GT segmentation?")
+                self._remove_segment_with_confirmation(new_segmentation, segment_id,
+                                                       "Remove already existing GT segmentation?")
                 return
         else:
             self.logger.warning("No segmentation available to copy or remove.")
@@ -969,7 +932,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         self.ui.message.setTextFormat(qt.Qt.RichText)  # Enable rich text formatting
         self.ui.message.setText(f"<p style='color:{color}; font-weight:bold;'>{message}</p>")
 
-    def change_orientation(self, orientation = 3):
+    def change_orientation(self, orientation=3):
         """
         Change the orientation layout viewer
         :param orientation:
@@ -982,6 +945,12 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         """
         self.logger.debug(f'Orientation clicked!: {orientation}')
         self.layoutManager.setLayout(orientation)
+
+    def put_it_asside(self):
+        """
+        For when i dont really know for sure if the lesions are correct and want to have a radiologist take a look at it
+        :return:
+        """
 
     def resetUIElements(self):
         # Check all dummy radio buttons to effectively uncheck the other buttons in the group
@@ -1015,10 +984,10 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         for camera in slicer.util.getNodesByClass('vtkMRMLCameraNode'):
             camera.SetFocalPoint(position)
 
-        self.toggle_all(True) # Only showing the one segmentation
+        self.toggle_all(True)  # Only showing the one segmentation
         slicer.app.processEvents()
 
-    def toggleSegmentationDisplay__(self, ForceDisplay = None):
+    def toggleSegmentationDisplay__(self, ForceDisplay=None):
         """
         Toggle between fill and outline display modes for both Old GT and AI segmentations.
         Force:  True == Fill
@@ -1106,6 +1075,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         self.ui.btnToggleSegmentationDisplay.setText("Show Fill" if not newFillVisibility else "Show Outline")
         self.logger.debug(f"Segmentation Display Updated: Fill={newFillVisibility}, Outline={not newFillVisibility}")
         slicer.app.processEvents()
+
     def toggle_segments_visibility__(self, toggle=None):
         """
         Toggle between showing all segments or only the selected segment in both
@@ -1135,7 +1105,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
             toggle = not self.all_segments_visable  # ✅ Correct toggle behavior
 
         if toggle:
-            #print("🟢 Showing all segments")
+            # print("🟢 Showing all segments")
             # Show all segments
             for i in range(segmentation_old_gt.GetNumberOfSegments()):
                 segment_id = segmentation_old_gt.GetNthSegmentID(i)
@@ -1149,7 +1119,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
             self.all_segments_visable = True  # ✅ Now reflects the new state
 
         else:
-            #print("🔴 Showing only the selected segment")
+            # print("🔴 Showing only the selected segment")
             # Hide all segments except the selected one
             for i in range(segmentation_old_gt.GetNumberOfSegments()):
                 segment_id = segmentation_old_gt.GetNthSegmentID(i)
@@ -1261,7 +1231,6 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         except Exception as e:
             self.logger.error(f"Error retrieving segment stats: {e}")
 
-
         if self.segmentation_index + 1 >= len(self.segment_ids):
             self.logger.warning("No more segments available!")
             self.ui.next_segmentation.setText("No more segments!")
@@ -1288,29 +1257,28 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         """
         Moves to the previous segment while ensuring its visibility.
         """
-        try:
-            segment_stats = self.segments_stats.get(self.current_segment_id, None)
-            if segment_stats is not None:
-                self.logger.debug(f"Saved segment stats: {segment_stats}")
-            else:
-                self.logger.warning(f"No segment stats found for segment ID: {self.current_segment_id}")
-        except Exception as e:
-            self.logger.error(f"Error retrieving segment stats: {e}")
+        if not self.segmentation_index == 0:
+            try:
+                segment_stats = self.segments_stats.get(self.current_segment_id, None)
+                if segment_stats is not None:
+                    self.logger.debug(f"Saved segment stats: {segment_stats}")
+                else:
+                    self.logger.warning(f"No segment stats found for segment ID: {self.current_segment_id}")
+            except Exception as e:
+                self.logger.error(f"Error retrieving segment stats: {e}")
 
-        # Move to previous segment
-        self.segmentation_index -= 1
-        # Move to next segment
+            # Move to previous segment
+            self.segmentation_index -= 1
 
+            self.current_segment_id = self.segment_ids[self.segmentation_index]
+            self.ui.next_segmentation.setText("Next (NO SAVE)")
 
-        self.current_segment_id = self.segment_ids[self.segmentation_index]
-        self.ui.next_segmentation.setText("Next (NO SAVE)")
+            # Ensure the new segment is visible
+            self._ensure_current_segment_visible()
 
-        # Ensure the new segment is visible
-        self._ensure_current_segment_visible()
-
-        # Maintain existing functionality
-        self.jump_to_segmentation_slice()
-        self.update_segment_availability_status()
+            # Maintain existing functionality
+            self.jump_to_segmentation_slice()
+            self.update_segment_availability_status()
 
     def _ensure_current_segment_visible(self):
         """
@@ -1333,17 +1301,18 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
             # Ensure visibility for the current segment in this segmentation
             if segmentation.GetSegment(self.current_segment_id):
                 display_node.SetSegmentVisibility(self.current_segment_id, True)
-                #self.logger.debug(
+                # self.logger.debug(
                 #    f"✅ Ensured visibility for segment '{self.current_segment_id}' in '{segNode.GetName()}'.")
-            #else:
-                #self.logger.debug(f"⚠️ Segment '{self.current_segment_id}' not found in '{segNode.GetName()}'.")
+            # else:
+            # self.logger.debug(f"⚠️ Segment '{self.current_segment_id}' not found in '{segNode.GetName()}'.")
         slicer.app.processEvents()
 
     def update_segment_availability_status(self):
         """
         Checks whether the segment exists in AI and/or Old GT segmentations and returns the formatted UI status string.
         """
-        ai_exists = self.ai_seg_node and self.ai_seg_node.GetSegmentation().GetSegment(self.segment_ids[self.segmentation_index]) is not None
+        ai_exists = self.ai_seg_node and self.ai_seg_node.GetSegmentation().GetSegment(
+            self.segment_ids[self.segmentation_index]) is not None
         old_gt_exists = self.old_gt_seg_node and self.old_gt_seg_node.GetSegmentation().GetSegment(
             self.segment_ids[self.segmentation_index]) is not None
 
@@ -1411,7 +1380,6 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         # Generate ROI name dynamically
         roi_name = f"NEW_LESION_{self.ROI_index}"
 
-
         # Create a new ROI node
         self.roi_node = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsROINode", roi_name)
         self.roi_node.SetDisplayVisibility(True)
@@ -1470,6 +1438,8 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
             self.logger.warning("Segment creation canceled by user.")
             slicer.mrmlScene.RemoveNode(self.roi_node)
             self.roi_node = None
+            self.update_segment_availability_status()
+            self.ui.new_lesion.setText(f'Found new lesion')
             return
 
         # Convert ROI to model representation
@@ -1575,9 +1545,9 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         if effect:
             effect.setParameter("MinimumThreshold", -50)
             effect.setParameter("MaximumThreshold", 200)
-        self.segmentEditorWidget.setActiveEffectByName("")\
-
+        self.segmentEditorWidget.setActiveEffectByName("")
     def all_responses_provided(self):
+
         # List of all dummy radio buttons
 
         # Check if any dummy radio button is checked
@@ -1688,6 +1658,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
 
         self._parameterNode.EndModify(wasModified)
 
+
 #
 # SlicerLikertDLratingLogic
 #
@@ -1728,6 +1699,7 @@ class SlicerLikertDLratingTest(ScriptedLoadableModuleTest):
     def runTest(self):
         """Run as few or as many tests as needed here.
         """
+
         self.setUp()
         self.test_SlicerLikertDLrating1()
 
@@ -1746,7 +1718,6 @@ class SlicerLikertDLratingTest(ScriptedLoadableModuleTest):
         self.delayDisplay("Starting the test")
 
         self.delayDisplay('Test passed')
-
 
 
 class SegmentationReviewTest(ScriptedLoadableModuleTest):
@@ -1780,8 +1751,10 @@ class SegmentationReviewTest(ScriptedLoadableModuleTest):
         if not widget:
             self.fail("SegmentationReviewWidget could not be initialized.")
 
+        slicer.test_mode = True
+
         # **Step 3**: Set the directory and trigger function
-        test_directory = r"X:\ct_lesion_detection\reviewer_TEST"
+        test_directory = r"\\image-storage\RD_Radiogenomics\ct_lesion_detection\reviewer_TEST"
         widget.onAtlasDirectoryChanged(test_directory)
 
         # **Step 4**: Ensure the directory was correctly set
