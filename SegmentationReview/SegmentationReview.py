@@ -67,7 +67,7 @@ class SegmentationReview(ScriptedLoadableModule):
     def __init__(self, parent):
         ScriptedLoadableModule.__init__(self, parent)
         self.parent.title = "PANCANCER SegmentationReview"
-        self.parent.categories = ["Review"]
+        self.parent.categories = ["Segmentation"]
         self.parent.dependencies = []
         self.parent.contributors = ["Anna Zapaishchykova (BWH), Dr. Benjamin H. Kann, AIM-Harvard"]
         self.parent.helpText = """
@@ -855,7 +855,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
                 self.segments_stats[segment_id]["new_seg"] = False  # Old GT is not a new segment
             else:
                 # Removing GT? Not really a good option??
-                self.logger.debug('REMOVING GT???')
+                self.logger.debug('REMOVING GT?')
                 self._remove_segment_with_confirmation(new_segmentation, segment_id,
                                                        "Remove already existing GT segmentation?")
                 return
@@ -951,6 +951,7 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         For when i dont really know for sure if the lesions are correct and want to have a radiologist take a look at it
         :return:
         """
+        ## DO: make function to save current index case to other folder for later reviewing with kalina
 
     def resetUIElements(self):
         # Check all dummy radio buttons to effectively uncheck the other buttons in the group
@@ -986,54 +987,6 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
 
         self.toggle_all(True)  # Only showing the one segmentation
         slicer.app.processEvents()
-
-    def toggleSegmentationDisplay__(self, ForceDisplay=None):
-        """
-        Toggle between fill and outline display modes for both Old GT and AI segmentations.
-        Force:  True == Fill
-                False == Outline
-        """
-        if ForceDisplay is None:
-            displayNode_old_gt = self.old_gt_seg_node.GetDisplayNode()
-            displayNode_ai = self.ai_seg_node.GetDisplayNode()
-
-            # Toggle between Fill and Outline mode for both segmentations
-            newFillVisibility = not displayNode_old_gt.GetVisibility2DFill()  # Get current state from old GT node
-
-            displayNode_old_gt.SetVisibility2DFill(newFillVisibility)
-            displayNode_old_gt.SetVisibility2DOutline(not newFillVisibility)
-
-            displayNode_ai.SetVisibility2DFill(newFillVisibility)
-            displayNode_ai.SetVisibility2DOutline(not newFillVisibility)
-
-            if self.ROI_segmentation_node is not None:
-                displayNode_ROI = self.ROI_segmentation_node.GetDisplayNode()
-                displayNode_ROI.SetVisibility2DFill(newFillVisibility)
-                displayNode_ROI.SetVisibility2DOutline(not newFillVisibility)
-
-            # Update the button text accordingly
-            self.ui.btnToggleSegmentationDisplay.setText("Show Fill" if not newFillVisibility else "Show Outline")
-            self.logger.debug(f'Toggle change the outline!')
-        else:
-            displayNode_old_gt = self.old_gt_seg_node.GetDisplayNode()
-            displayNode_ai = self.ai_seg_node.GetDisplayNode()
-            # Toggle between Fill and Outline mode for both segmentations
-            newFillVisibility = ForceDisplay  # Force the display
-
-            displayNode_old_gt.SetVisibility2DFill(newFillVisibility)
-            displayNode_old_gt.SetVisibility2DOutline(not newFillVisibility)
-
-            displayNode_ai.SetVisibility2DFill(newFillVisibility)
-            displayNode_ai.SetVisibility2DOutline(not newFillVisibility)
-
-            if self.ROI_segmentation_node is not None:
-                displayNode_ROI = self.ROI_segmentation_node.GetDisplayNode()
-                displayNode_ROI.SetVisibility2DFill(newFillVisibility)
-                displayNode_ROI.SetVisibility2DOutline(not newFillVisibility)
-
-            # Update the button text accordingly
-            self.logger.debug(f'Force change the outline!')
-            self.ui.btnToggleSegmentationDisplay.setText("Show Fill" if not newFillVisibility else "Show Outline")
 
     def toggleSegmentationDisplay(self, forceVisibility=None):
         """
@@ -1075,68 +1028,6 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         self.ui.btnToggleSegmentationDisplay.setText("Show Fill" if not newFillVisibility else "Show Outline")
         self.logger.debug(f"Segmentation Display Updated: Fill={newFillVisibility}, Outline={not newFillVisibility}")
         slicer.app.processEvents()
-
-    def toggle_segments_visibility__(self, toggle=None):
-        """
-        Toggle between showing all segments or only the selected segment in both
-        AI and Old GT segmentation nodes.
-
-        Parameters:
-        - toggle (bool, optional): If True, forces all segments to be visible.
-                                   If False, forces only the selected segment to be visible.
-                                   If None (default), toggles the current state.
-        """
-        if not self.old_gt_seg_node or not self.ai_seg_node:
-            self.logger.warning("One or both segmentation nodes are missing.")
-            return
-
-        segmentation_old_gt = self.old_gt_seg_node.GetSegmentation()
-        segmentation_ai = self.ai_seg_node.GetSegmentation()
-
-        display_node_old_gt = self.old_gt_seg_node.GetDisplayNode()
-        display_node_ai = self.ai_seg_node.GetDisplayNode()
-
-        # **Ensure segmentation nodes remain visible**
-        display_node_old_gt.SetVisibility(True)
-        display_node_ai.SetVisibility(True)
-
-        # ✅ Corrected: Properly toggle when no input is given
-        if toggle is None:
-            toggle = not self.all_segments_visable  # ✅ Correct toggle behavior
-
-        if toggle:
-            # print("🟢 Showing all segments")
-            # Show all segments
-            for i in range(segmentation_old_gt.GetNumberOfSegments()):
-                segment_id = segmentation_old_gt.GetNthSegmentID(i)
-                display_node_old_gt.SetSegmentVisibility(segment_id, True)
-
-            for i in range(segmentation_ai.GetNumberOfSegments()):
-                segment_id = segmentation_ai.GetNthSegmentID(i)
-                display_node_ai.SetSegmentVisibility(segment_id, True)
-
-            self.ui.toggle_other_segmentations.setText("Only Selected Segment")
-            self.all_segments_visable = True  # ✅ Now reflects the new state
-
-        else:
-            # print("🔴 Showing only the selected segment")
-            # Hide all segments except the selected one
-            for i in range(segmentation_old_gt.GetNumberOfSegments()):
-                segment_id = segmentation_old_gt.GetNthSegmentID(i)
-                if segment_id != self.current_segment_id:
-                    display_node_old_gt.SetSegmentVisibility(segment_id, False)
-                else:
-                    display_node_old_gt.SetSegmentVisibility(segment_id, True)
-
-            for i in range(segmentation_ai.GetNumberOfSegments()):
-                segment_id = segmentation_ai.GetNthSegmentID(i)
-                if segment_id != self.current_segment_id:
-                    display_node_ai.SetSegmentVisibility(segment_id, False)
-                else:
-                    display_node_ai.SetSegmentVisibility(segment_id, True)
-
-            self.ui.toggle_other_segmentations.setText("Show All Segments")
-            self.all_segments_visable = False  # ✅ Now reflects the new state
 
     def toggle_segments_visibility(self, toggle=None):
         """
@@ -1546,18 +1437,6 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
             effect.setParameter("MinimumThreshold", -50)
             effect.setParameter("MaximumThreshold", 200)
         self.segmentEditorWidget.setActiveEffectByName("")
-    def all_responses_provided(self):
-
-        # List of all dummy radio buttons
-
-        # Check if any dummy radio button is checked
-        for dummy_rb in self.dummy_radio_buttons:
-            if dummy_rb.isChecked():
-                return False
-
-        # You can add more validation checks for other responses if needed
-
-        return True
 
     def cleanup(self):
         """
