@@ -1266,6 +1266,8 @@ class SegmentationReviewWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
 
         if existing_rois.GetNumberOfItems() > 0:
             self.create_segment_from_roi()
+            self.ui.choose_seg_old.blockSignals(False)
+            self.ui.choose_seg_ai.blockSignals(False)
             return
 
         # Generate ROI name dynamically
